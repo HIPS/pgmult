@@ -92,7 +92,6 @@ def load_newsgroup_data(V, cats, sort_data=True):
     return get_sparse_repr(newsgroups.data, V, sort_data)
 
 
-
 def load_ap_data(V, sort_data=True):
     def fetch_ap():
         from cStringIO import StringIO

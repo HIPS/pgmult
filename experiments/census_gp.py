@@ -5,12 +5,15 @@ We use the Polya-gamma augmentation trick to perform fully-Bayesian inference.
 """
 import os
 import time
-import cPickle, gzip
-from collections import namedtuple
+import gzip
+from zipfile import ZipFile
+from urllib import urlretrieve
+import cPickle as pickle
+import operator
+from collections import namedtuple, defaultdict
 
 import numpy as np
 np.random.seed(0)
-
 from scipy.special import gammaln
 from scipy.misc import logsumexp
 
@@ -31,44 +34,23 @@ reload(pgmult.gp)
 import pgmult.distributions
 reload(pgmult.distributions)
 
-### Data helper functions
-def load_data(start_train_year=1900, end_train_year=2010,
-              continental=False, DC=True,
-              N_names=None, train_state=None,
-              downsample=None):
 
-    filename = os.path.join("data", "names", "male_data.pkl")
-    with open(filename, "r") as f:
-        alldata = cPickle.load(f)
+#############
+#  loading  #
+#############
 
-    data, years, states, names = alldata
+def load_data(
+        start_train_year=1900, end_train_year=2010,
+        continental=False, DC=True, N_names=None, train_state=None,
+        downsample=None):
 
-    # Convert states to an array
-    states = np.array(states).astype(object)
+    # data is (years x states x names)
+    data, years, states, names = download_data(N_names)
 
-    # Count
-    N_years  = years.size
-    N_states = len(states)
-    N_names_tot  = len(names)
-
-    # Use only N_names
-    if N_names is None:
-        N_names = N_names_tot
-    else:
-        assert N_names <= N_names_tot
-
-    # The data is a (years x states x names) tensor of counts.
-    # Manually flatten it into a matrix of size ((year,state) x names)
-    flat_data = np.zeros((N_years*N_states, N_names))
-    flat_years = np.zeros(N_years*N_states)
-    flat_states = np.zeros(N_years*N_states, dtype=np.object)
-
-    for yr in xrange(N_years):
-        for st in xrange(N_states):
-            ind = yr*N_states + st
-            flat_data[ind, :] = data[yr, st, :N_names]
-            flat_years[ind] = years[yr]
-            flat_states[ind] = states[st]
+    # flatten its first two dimensions
+    flat_data = data.reshape(-1, len(names))
+    flat_years = np.repeat(years, len(states))
+    flat_states = np.tile(states, len(years))
 
     # Get the latitude and longitude
     loc_file = os.path.join('data','names','state_latlon.csv')
@@ -76,47 +58,43 @@ def load_data(start_train_year=1900, end_train_year=2010,
         latlon = {state:(float(lat),float(lon)) for
                   state, lat, lon in
                   [line.strip().split(',') for line in infile]}
-
-    flat_latlon = np.array([latlon[st] for st in flat_states])
-    flat_lat = flat_latlon[:,0]
-    flat_lon = flat_latlon[:,1]
+    lat, lon = np.array([latlon[st] for st in flat_states]).T
 
     # Parse out the desired training and testing data
     train_inds = (flat_years >= start_train_year) & (flat_years < end_train_year)
     test_inds  = (flat_years >= end_train_year)
 
     if train_state is not None:
-        train_inds = train_inds & (flat_states == train_state)
-        test_inds = test_inds & (flat_states == train_state)
+        train_inds &= (flat_states == train_state)
+        test_inds &= (flat_states == train_state)
 
     if continental:
         not_AK = np.array([st.upper() != "AK" for st in flat_states])
-        train_inds = train_inds & not_AK
-        test_inds  = test_inds  & not_AK
+        train_inds &= not_AK
+        test_inds  &= not_AK
 
         not_HI = np.array([st.upper() != "HI" for st in flat_states])
-        train_inds = train_inds & not_HI
-        test_inds  = test_inds  & not_HI
+        train_inds &= not_HI
+        test_inds  &= not_HI
 
     if not DC:
         not_DC = np.array([st.upper() != "DC" for st in flat_states])
-        train_inds = train_inds & not_DC
-        test_inds  = test_inds  & not_DC
+        train_inds &= not_DC
+        test_inds  &= not_DC
 
     # Package them into named tuples
-    train_data = flat_data[train_inds,:N_names]
+    train_data = flat_data[train_inds]
     train_years = flat_years[train_inds]
-    train_lat = flat_lat[train_inds]
-    train_lon = flat_lon[train_inds]
+    train_lat = lat[train_inds]
+    train_lon = lon[train_inds]
     train_states = flat_states[train_inds]
 
-    test_data = flat_data[test_inds,:N_names]
+    test_data = flat_data[test_inds]
     test_years = flat_years[test_inds]
-    test_lat = flat_lat[test_inds]
-    test_lon = flat_lon[test_inds]
+    test_lat = lat[test_inds]
+    test_lon = lon[test_inds]
     test_states = flat_states[test_inds]
 
-    # Downsample number of observations per state,year if asked
     if downsample is not None:
         print "Downsampling data to ", downsample, " names per year/state"
         assert isinstance(downsample, int) and downsample > 0
@@ -130,19 +108,79 @@ def load_data(start_train_year=1900, end_train_year=2010,
     train = Dataset(N_names, train_data, train_years, train_lat, train_lon, train_states, names)
     test  = Dataset(N_names, test_data,  test_years,  test_lat,  test_lon,  test_states,  names)
 
-    downsample_train = Dataset(N_names, downsample_train_data, train_years, train_lat, train_lon, train_states, names)
-    downsample_test  = Dataset(N_names, downsample_test_data,  test_years,  test_lat,  test_lon,  test_states,  names)
+    downsample_train = Dataset(
+        N_names, downsample_train_data, train_years, train_lat, train_lon, train_states, names)
+    downsample_test  = Dataset(
+        N_names, downsample_test_data,  test_years,  test_lat, test_lon,  test_states, names)
 
     return downsample_train, downsample_test, train, test
 
-def get_inputs(dataset):
-    Z = np.hstack((dataset.years[:,None],
-                   dataset.lon[:,None],
-                   dataset.lat[:,None]))
-    return Z
+
+def download_data(N_names):
+    url = 'http://www.ssa.gov/oact/babynames/state/namesbystate.zip'
+    datafile = os.path.join("data", "names", "namesbystate.zip")
+
+    if not os.path.exists(datafile):
+        print 'Downloading census data for the first time...'
+        urlretrieve(url, datafile)
+        print '...done!'
+    alldata = parse_names_files(ZipFile(datafile), N_names)
+
+    return alldata
+
+
+def parse_names_files(zfile, N_names):
+    def parse_state(string):
+        data = defaultdict(lambda: defaultdict(int))
+        for line in string.split('\r\n'):
+            if not line:
+                continue
+            state, gender, year, name, count = line.split(',')
+            if gender.lower() == 'm':
+                data[name.lower()][int(year)] = int(count)
+        return data
+
+    def get_years(dct):
+        sum = lambda lst: reduce(operator.or_, lst)
+        return sorted(sum(set(dd.keys()) for d in dct.values() for dd in d.values()))
+
+    def get_top_names(dct, N_names):
+        counts = defaultdict(int)
+        for statedict in dct.values():
+            for name, yeardict in statedict.iteritems():
+                counts[name] += sum(yeardict.values())  # sum over years
+        return sorted(counts.keys(), key=counts.__getitem__, reverse=True)[:N_names]
+
+    def get_data_array(dct, years, states, names):
+        counts = np.zeros((len(years), len(states), len(names)))
+        for year_idx, year in enumerate(years):
+            for state_idx, state in enumerate(states):
+                for name_idx, name in enumerate(names):
+                    counts[year_idx, state_idx, name_idx] = \
+                        dct[state][name][year]
+        return counts
+
+    # dct[state][name][year] = count
+    keys = [key for key in zfile.namelist() if key.endswith('.TXT')]
+    dct = {key[:2]: parse_state(zfile.read(key)) for key in keys}
+
+    years = get_years(dct)
+    states = sorted(dct.keys())
+    names = get_top_names(dct, N_names)
+    data = get_data_array(dct, years, states, names)
+
+    return data, years, states, names
+
+
+#############
+#  fitting  #
+#############
+
+def get_inputs(data):
+    return np.hstack((data.years[:,None], data.lon[:,None], data.lat[:,None]))
+
 
 def fit_gp_multinomial_model(model, test, pi_train=None, N_samples=100, run=1):
-
     if pi_train is not None:
         if isinstance(model, pgmult.gp.LogisticNormalGP):
             model.data_list[0]["psi"] = ln_pi_to_psi(pi_train) - model.mu
@@ -157,7 +195,7 @@ def fit_gp_multinomial_model(model, test, pi_train=None, N_samples=100, run=1):
     results_file = results_base + ".pkl.gz"
     if os.path.exists(results_file):
         with gzip.open(results_file, "r") as f:
-            samples, lls, pred_lls, timestamps = cPickle.load(f)
+            samples, lls, pred_lls, timestamps = pickle.load(f)
 
     else:
         Z_test = get_inputs(test)
@@ -190,13 +228,18 @@ def fit_gp_multinomial_model(model, test, pi_train=None, N_samples=100, run=1):
 
             # Save this sample
             # with gzip.open(results_file + ".itr%03d.pkl.gz" % itr, "w") as f:
-            #     cPickle.dump(model, f, protocol=-1)
+            #     pickle.dump(model, f, protocol=-1)
 
         lls = np.array(lls)
         pred_lls = np.array(pred_lls)
         timestamps = np.cumsum(times)
 
     return samples, lls, pred_lls, pred_pis, timestamps
+
+
+#############
+#  metrics  #
+#############
 
 def compute_pred_likelihood(model, samples, test):
     Z_pred = get_inputs(test)
@@ -255,6 +298,11 @@ def compute_fraction_top_names(test, test_pis, top=10, bottom=10):
         print "Bot: %d:  %.2f +- %.2f" % (yr, results[i,2], results[i,3])
 
     return results
+
+
+##############
+#  plotting  #
+##############
 
 def plot_census_results(train, samples, test, test_pis):
     # Extract samp[les
@@ -451,6 +499,9 @@ def plot_pred_ll_vs_time(static_pll, emp_pll,
     plt.savefig(os.path.join(results_dir, "census_pred_ll_vs_time.pdf"))
 
 
+############
+#  script  #
+############
 
 if __name__ == "__main__":
     run = 7
@@ -491,7 +542,7 @@ if __name__ == "__main__":
     results_file = os.path.join(results_dir, "emp_gp_results.pkl.gz")
     if os.path.exists(results_file):
         with gzip.open(results_file) as f:
-            emp_gp_model, emp_pll, emp_ppi = cPickle.load(f)
+            emp_gp_model, emp_pll, emp_ppi = pickle.load(f)
     else:
         emp_gp_model = pgmult.gp.EmpiricalStickBreakingGPModel(train.K, kernel, D=3, alpha=0.1)
         emp_gp_model.add_data(get_inputs(train), train.data, optimize_hypers=True)
@@ -499,7 +550,7 @@ if __name__ == "__main__":
             emp_gp_model.predictive_log_likelihood(get_inputs(full_test), full_test.data)
 
         with gzip.open(results_file, "w") as f:
-            cPickle.dump((emp_gp_model, emp_pll, emp_ppi), f, protocol=-1)
+            pickle.dump((emp_gp_model, emp_pll, emp_ppi), f, protocol=-1)
     print "Empirical GP PLL: ", emp_pll
 
     # Get the pi_train of the empirical model
@@ -511,7 +562,7 @@ if __name__ == "__main__":
     burnin = N_samples // 2
     if os.path.exists(results_file):
         with gzip.open(results_file) as f:
-            sbm_gp_samples, sbm_gp_plls, sbm_gp_ppis, sbm_gp_timestamps = cPickle.load(f)
+            sbm_gp_samples, sbm_gp_plls, sbm_gp_ppis, sbm_gp_timestamps = pickle.load(f)
     else:
         gp_model = pgmult.gp.MultinomialGP(train.K, emp_gp_model.kernel, D=3)
         gp_model.add_data(get_inputs(train), train.data)
@@ -520,7 +571,7 @@ if __name__ == "__main__":
             fit_gp_multinomial_model(gp_model, full_test, pi_train=emp_pi_train, N_samples=N_samples)
 
         with gzip.open(results_file, "w") as f:
-            cPickle.dump((sbm_gp_samples[-1:], sbm_gp_plls, sbm_gp_ppis, sbm_gp_timestamps), f, protocol=-1)
+            pickle.dump((sbm_gp_samples[-1:], sbm_gp_plls, sbm_gp_ppis, sbm_gp_timestamps), f, protocol=-1)
 
     sbm_avg_pll = logsumexp(sbm_gp_plls[burnin:]) - np.log(N_samples - burnin)
     print "Stick Breaking Multinomial GP PLL: ", sbm_avg_pll
@@ -535,13 +586,13 @@ if __name__ == "__main__":
     ln_gp_model.add_data(get_inputs(train), train.data)
     if os.path.exists(results_file):
         with gzip.open(results_file) as f:
-            lnm_gp_samples, lnm_gp_plls, lnm_gp_ppis, lnm_gp_timestamps = cPickle.load(f)
+            lnm_gp_samples, lnm_gp_plls, lnm_gp_ppis, lnm_gp_timestamps = pickle.load(f)
     else:
         lnm_gp_samples, _, lnm_gp_plls, lnm_gp_ppis, lnm_gp_timestamps = \
             fit_gp_multinomial_model(ln_gp_model, full_test, pi_train=emp_pi_train, N_samples=N_samples)
 
         with gzip.open(results_file, "w") as f:
-            cPickle.dump((lnm_gp_samples[-1:], lnm_gp_plls, lnm_gp_ppis, lnm_gp_timestamps), f, protocol=-1)
+            pickle.dump((lnm_gp_samples[-1:], lnm_gp_plls, lnm_gp_ppis, lnm_gp_timestamps), f, protocol=-1)
 
     lnm_avg_pll = logsumexp(lnm_gp_plls[burnin:]) - np.log(N_samples-burnin)
     print "Logistic Normal GP PLL: ", lnm_avg_pll
