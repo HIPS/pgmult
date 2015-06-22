@@ -4,18 +4,16 @@ Each document is modeled as a draw from an LDS with
 categorical observations.
 """
 import os
-import re
 import gzip
 import time
 import cPickle
-import operator
 import collections
 import numpy as np
 from scipy.misc import logsumexp
 from sklearn.feature_extraction.text import CountVectorizer
 
 import matplotlib.pyplot as plt
-from hips.plotting.layout import create_axis_at_location, create_figure
+from hips.plotting.layout import create_figure
 import brewer2mpl
 
 from pgmult.lds import MultinomialLDS
@@ -23,7 +21,7 @@ from pgmult.particle_lds import LogisticNormalMultinomialLDS, ParticleSBMultinom
 from pgmult.hmm import MultinomialHMM
 from pgmult.internals.utils import pi_to_psi
 
-from pylds.models import DefaultLDS, NonstationaryLDS
+from pylds.models import NonstationaryLDS
 
 from pybasicbayes.distributions import GaussianFixed, Multinomial, Regression
 from pybasicbayes.util.text import progprint_xrange
@@ -41,6 +39,7 @@ np.random.seed(0)
 
 # Model parameters
 K = 1000     # Number of words
+
 
 # Data handling
 def load(filename=os.path.join("data", "alice", "alice.txt")):
@@ -80,6 +79,7 @@ def make_onehot_seq(doc, vectorizer):
 # model, lls, test_lls, pred_lls, pis, psis, zs, timestamps
 Results = collections.namedtuple("Results", ["lls", "test_lls", "pred_lls", "samples", "timestamps"])
 
+
 def fit_lds_model(Xs, Xtest, D, N_samples=100):
     Nx = len(Xs)
     assert len(Xtest) == Nx
@@ -98,7 +98,6 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
 
 
     [model.resample_parameters() for model in models]
-
 
     def compute_pred_ll():
         pred_ll = 0
@@ -123,6 +122,7 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
+
 
 def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
     Nx = len(Xs)
@@ -162,12 +162,11 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
     assert len(Xtest) == Nx
 
     print "Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds
-    from pylds.models import NonstationaryLDS
     models = [NonstationaryLDS(
-                init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
-                dynamics_distn=AutoRegression(nu_0=D+1,S_0=1*np.eye(D),M_0=np.zeros((D,D)),K_0=1*np.eye(D)),
-                emission_distn=Regression(nu_0=K+1,S_0=K*np.eye(K),M_0=np.zeros((K,D)),K_0=K*np.eye(D)))
-              for _ in xrange(Nx)]
+        init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
+        dynamics_distn=AutoRegression(nu_0=D+1,S_0=1*np.eye(D),M_0=np.zeros((D,D)),K_0=1*np.eye(D)),
+        emission_distn=Regression(nu_0=K+1,S_0=K*np.eye(K),M_0=np.zeros((K,D)),K_0=K*np.eye(D)))
+        for _ in xrange(Nx)]
 
     Xs_centered = [X - np.mean(X, axis=0)[None,:] + 1e-3*np.random.randn(*X.shape) for X in Xs]
     for X, model in zip(Xs_centered, models):
