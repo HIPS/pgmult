@@ -16,21 +16,8 @@ import brewer2mpl
 colors = brewer2mpl.get_map("Set1", "Qualitative",  9).mpl_colors
 
 
-# K = 4           # Size of output observations
-# M = 100         # Number of observed datapoitns
-# l = 10.0        # Length scale of GP
-# L = 100.0       # Length of observation sequence
-# v = 1.0         # Variance of the GP
-#
-# # Initialize a grid of points at which to observe GP
-# N_max = 10   # Number of symbols observed per multinomial observation
-# N = N_max * np.ones(M, dtype=np.int32)
-# Z = np.linspace(0,L,M)[:,None]
-#
-# # Initialize the kernel
-# kernel = RBF(1, lengthscale=l, variance=v)
 K = 4           # Size of output observations
-N_max = 10
+N_max = 10      # Number of observations per input
 
 def initialize_test(N_max=10, true_model_class=MultinomialGP):
     D = 1           # Input dimensionality
@@ -65,14 +52,12 @@ def initialize_interactive_plot(model, train, test):
     plot_K = isinstance(model, LogisticNormalGP)
 
     # Make predictions at the training and testing data
-    # import ipdb; ipdb.set_trace()
     pi_train, psi_train, _ = \
             model.collapsed_predict(train.Z)
 
     pi_test, psi_test, _ = \
             model.collapsed_predict(test.Z)
 
-    # lim = np.amax(abs(train.psi))
     lim = 5
 
     # PLOT!
@@ -125,7 +110,6 @@ def update_plot(lns, model, train, test):
     plot_K = isinstance(model, LogisticNormalGP)
 
     # Make predictions at the training and testing data
-    # import ipdb; ipdb.set_trace()
     pi_train, psi_train, _ = \
             model.collapsed_predict(train.Z)
 
@@ -152,7 +136,7 @@ def fit_model(model, train_data, test_data, N_iter=100, lns=None):
         return fit_empirical_model(model, train_data, test_data)
 
     lls = [model.log_likelihood()]
-    pred_lls = [model.predictive_log_likelihood(test_data.Z, test_data.X, normalized=False)[0]]
+    pred_lls = [model.predictive_log_likelihood(test_data.Z, test_data.X)[0]]
     pred_pi, pred_psi, _ = model.collapsed_predict(test_data.Z)
     pred_pis = [pred_pi]
     pred_psis = [pred_psi]
@@ -164,7 +148,7 @@ def fit_model(model, train_data, test_data, N_iter=100, lns=None):
 
         # Collect samples
         lls.append(model.log_likelihood())
-        pred_lls.append(model.predictive_log_likelihood(test_data.Z, test_data.X, normalized=False)[0])
+        pred_lls.append(model.predictive_log_likelihood(test_data.Z, test_data.X)[0])
         pred_pi, pred_psi, _ = model.collapsed_predict(test_data.Z)
         pred_pis.append(pred_pi)
         pred_psis.append(pred_psi)
@@ -186,8 +170,8 @@ def fit_model(model, train_data, test_data, N_iter=100, lns=None):
 
 
 def fit_empirical_model(model, train, test):
-    empirical_ll = model.predictive_log_likelihood(train.Z, train.X, normalized=False)
-    empirical_pred_ll = model.predictive_log_likelihood(test.Z, test.X, normalized=False)
+    empirical_ll, _ = model.predictive_log_likelihood(train.Z, train.X)
+    empirical_pred_ll, _ = model.predictive_log_likelihood(test.Z, test.X)
     pred_pi, pred_psi, _ = model.collapsed_predict(test.Z)
     pred_pis = np.array([pred_pi])
     pred_psis = np.array([pred_psi])
@@ -197,7 +181,8 @@ def fit_empirical_model(model, train, test):
                    empirical_pred_ll * np.ones(2),
                    pred_pis, pred_psis, [0,1])
 
-def run_example():
+if __name__ == "__main__":
+
     train, test = initialize_test(N_max=N_max, true_model_class=MultinomialGP)
 
     # models = [EmpiricalStickBreakingGPModel, LogisticNormalGP, MultinomialGP]
@@ -263,25 +248,5 @@ def run_example():
     axs[1].set_xlabel("Time (s)")
     axs[1].set_ylabel("Pred. Log likelihood")
 
-    plt.savefig(os.path.join("examples", "gp_lkhd.png"))
     plt.ioff()
     plt.show()
-
-    # Compute average over pred_pi samples
-    from scipy.special import gammaln
-    mean_pred_pi = results[1].pred_pis[N_samples//2:].mean(0)
-    pll_mean_pred_pi = gammaln(test.X.sum(axis=1)+1).sum() - gammaln(test.X+1).sum()
-    pll_mean_pred_pi += np.nansum(test.X * np.log(mean_pred_pi))
-
-    mean_pred_psi = results[1].pred_psis[N_samples//2:].mean(0)
-    pi_mean_pred_psi = np.array([psi_to_pi(psi) for psi in mean_pred_psi])
-
-    pll_pi_mean_pred_psi = gammaln(test.X.sum(axis=1)+1).sum() - gammaln(test.X+1).sum()
-    pll_pi_mean_pred_psi += np.nansum(test.X * np.log(pi_mean_pred_psi))
-
-    print "EMP PLL: ", results[0].pred_lls[0] / test.X.sum()
-    print "Exp PLL: ", expected_pred_ll / test.X.sum()
-    print "Exp pi PLL: ", pll_mean_pred_pi / test.X.sum()
-    print "Exp psi PLL: ", pll_pi_mean_pred_psi / test.X.sum()
-
-run_example()
