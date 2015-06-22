@@ -180,72 +180,6 @@ class _MultinomialGPBase(Model):
             data["psi"] = psi
             data["omega"] = omega
 
-    # def predict(self, Z_new, full_output=True, full_cov=False):
-    #     """
-    #     Predict the multinomial probability vector at a grid of points, Z
-    #     :param Z_new:
-    #     :return:
-    #     """
-    #     assert len(self.data_list) == 1, "Must have one data list in order to predict."
-    #     data = self.data_list[0]
-    #     M = data["M"]
-    #     N = data["N"]
-    #     Z = data["Z"]
-    #
-    #
-    #     assert Z_new is not None and Z_new.ndim == 2 and Z_new.shape[1] == self.D
-    #     M_new = Z_new.shape[0]
-    #
-    #     # Compute the kernel for Z_news
-    #     # import ipdb; ipdb.set_trace()
-    #     C   = self.kernel.K(Z, Z)
-    #     # Cvv = C + np.diag(1e-6 * np.ones(M))
-    #     Cvv = C + 1e-10 * np.eye(M)
-    #     Lvv = np.linalg.cholesky(Cvv)
-    #
-    #     Cnn = self.kernel.K(Z_new, Z_new)
-    #
-    #     # Compute the kernel between the new and valid points
-    #     Cnv = self.kernel.K(Z_new, Z)
-    #
-    #     # Predict the psis
-    #     mu_psis_new = np.zeros((M_new, self.K-1))
-    #     var_psis_new = np.zeros((M_new, self.K-1))
-    #     for k in xrange(self.K-1):
-    #         sys.stdout.write(".")
-    #         sys.stdout.flush()
-    #
-    #         psik = data["psi"][:,k]
-    #
-    #         # Compute the predictive parameters
-    #         y = solve_triangular(Lvv, psik, lower=True)
-    #         x = solve_triangular(Lvv.T, y, lower=False)
-    #         psik_pred = Cnv.dot(x)
-    #         psik_pred = Cnv.dot(np.linalg.solve(C, psik))
-    #
-    #         # Save these into the combined arrays
-    #         mu_psis_new[:,k] = psik_pred
-    #
-    #         # Add the mean vector
-    #         mu_psis_new[:,k] += self.mu[k]
-    #
-    #         if full_cov:
-    #             Sig_pred = Cnn - Cnv.dot(np.linalg.solve(Cvv, Cnv.T))
-    #             var_psis_new[:,k] = np.diag(Sig_pred)
-    #         else:
-    #             Sig_pred = None
-    #
-    #     sys.stdout.write("\n")
-    #     sys.stdout.flush()
-    #
-    #     # Convert these to pis
-    #     pis_new = psi_to_pi(mu_psis_new)
-    #
-    #     if full_output:
-    #         return pis_new, mu_psis_new, var_psis_new
-    #     else:
-    #         return pis_new
-
     def collapsed_predict(self, Z_new, full_output=True, full_cov=False):
         """
         Predict the multinomial probability vector at a grid of points, Z_new
@@ -410,20 +344,6 @@ class _MultinomialGPGibbsSampling(_MultinomialGPBase, ModelGibbsSampling):
             M = data["M"]
             assert X.ndim == 2 and X.shape[1] == self.K
 
-            # pi_emp = X.astype(np.float) / X.sum(axis=1)[:,None]
-            # pi_emp_mean = X.sum(axis=0).astype(np.float) / X.sum()
-            #
-            # # Clip to a reasonable range
-            # if pi_lim is None:
-            #     pi_lim = 1e-6
-            # else:
-            #     assert pi_lim > 0 and pi_lim < 1
-            #
-            # pi_emp = np.clip(pi_emp, pi_lim, 1-pi_lim)
-            # pi_emp_mean = np.clip(pi_emp_mean, pi_lim, 1-pi_lim)
-            # pi_emp = pi_emp / pi_emp.sum(axis=1)[:,None]
-            # pi_emp_mean = pi_emp_mean / pi_emp_mean.sum()
-
             # Get the empirical probabilities (offset by 1 to ensure nonzero)
             alpha = 1
             pi_emp = (alpha+X).astype(np.float) / \
@@ -513,24 +433,9 @@ class _MultinomialGPGibbsSampling(_MultinomialGPBase, ModelGibbsSampling):
             psi = data["psi"] + self.mu[None, :]
 
             # Go through each GP and resample psi given the likelihood
-            # omega = np.zeros((M, self.K-1))
-            # for k in xrange(self.K-1):
-            #     # Throw out inputs where N[:,k] == 0
-            #     valid = np.where(N[:,k])[0]
-            #     M_valid = valid.size
-            #
-            #     # Resample omega given N and psi
-            #     tmpN = N[valid,k].ravel("C")
-            #     tmppsi = psi[valid,k].ravel("C")
-            #     tmpomg = np.zeros(M_valid)
-            #     ppg.pgdrawvpar(self.ppgs, tmpN, tmppsi, tmpomg)
-            #     omega[valid,k] = tmpomg
             tmp_omg = np.zeros(N.size)
             ppg.pgdrawvpar(self.ppgs, N.ravel(), psi.ravel(), tmp_omg)
             data["omega"] = tmp_omg.reshape((M, self.K-1))
-
-            # Save omega in the data, why?
-            # data["omega"] = omega
 
     def resample_mu(self):
         # Resample the mean vector given the samples of psi
@@ -579,6 +484,7 @@ class _MultinomialGPGibbsSampling(_MultinomialGPBase, ModelGibbsSampling):
 
     def resample_kernel_parameters(self):
         pass
+
 
 class MultinomialGP(_MultinomialGPGibbsSampling):
     pass
@@ -667,25 +573,6 @@ class LogisticNormalGP(ModelGibbsSampling):
             X = data["X"]
             M = data["M"]
             assert X.ndim == 2 and X.shape[1] == self.K
-
-            # pi_emp = X.astype(np.float) / X.sum(axis=1)[:,None]
-            # pi_emp_mean = X.sum(axis=0).astype(np.float) / X.sum()
-            #
-            # # Clip to a reasonable range
-            # if pi_lim is None:
-            #     pi_lim = 1e-6
-            # else:
-            #     assert pi_lim > 0 and pi_lim < 1
-            #
-            # pi_emp = np.clip(pi_emp, pi_lim, 1-pi_lim)
-            # pi_emp_mean = np.clip(pi_emp_mean, pi_lim, 1-pi_lim)
-            # pi_emp = pi_emp / pi_emp.sum(axis=1)[:,None]
-            # pi_emp_mean = pi_emp_mean / pi_emp_mean.sum()
-            #
-            # # Set mu equal to the empirical mean value of pi
-            # psi_emp_mean = ln_pi_to_psi(pi_emp_mean)
-            # self.mu = psi_emp_mean
-
 
             # Get the empirical probabilities (offset by 1 to ensure nonzero)
             alpha = 1.0
@@ -881,8 +768,6 @@ class LogisticNormalGP(ModelGibbsSampling):
         assert len(psi_omega_list) == len(self.data_list)
         for psi, data in zip(psi_omega_list, self.data_list):
             data["psi"] = psi
-
-
 
 
 class EmpiricalStickBreakingGPModel(Model):
