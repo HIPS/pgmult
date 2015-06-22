@@ -1,153 +1,46 @@
 """
 Some simple models with multinomial observations and Gaussian priors.
 """
-import copy
 import numpy as np
-from numpy.lib.stride_tricks import as_strided
 
 from scipy.special import gammaln
 from scipy.misc import logsumexp
 
 from pybasicbayes.abstractions import Model, ModelGibbsSampling
 from pylds.states import LDSStates
-from pylds.lds_messages_interface import \
-    filter_and_sample, filter_and_sample_diagonal, \
-    kalman_filter, kalman_info_filter, kalman_filter_diagonal
+from pylds.lds_messages_interface import filter_and_sample_diagonal, \
+    kalman_filter, kalman_filter_diagonal
 
 from pgmult.distributions import PGMultinomialRegression
 from pgmult.internals.utils import N_vec, kappa_vec
 
+
 class MultinomialLDSStates(LDSStates):
-
-    def old_resample(self, conditional_mean, conditional_cov):
-        # Filter and sample with with heterogeneous noise
-        # from the Polya gamma observations
-        assert isinstance(self.model.emission_distn, PGMultinomialRegression)
-        assert conditional_mean.shape == (self.T, self.p)
-        assert conditional_cov.shape == (self.T, self.p, self.p)
-
-        ll, self.stateseq = filter_and_sample(
-            self.mu_init, self.sigma_init,
-            self.A,
-            self.sigma_states,
-            self.C,
-            conditional_cov,
-            conditional_mean)
-
-        # print "states:  (", self.stateseq.min(), ", ", self.stateseq.max(), ")"
-
-        assert np.all(np.isfinite(self.stateseq))
-
     def resample(self, conditional_mean, conditional_cov):
-        # Filter and sample with with heterogeneous noise
-        # from the Polya gamma observations
+        # Filter and sample with heterogeneous noise from the Polya gamma obs
         assert isinstance(self.model.emission_distn, PGMultinomialRegression)
-        C = self.model.emission_distn.C
 
         assert conditional_mean.shape == (self.T, self.p)
         assert conditional_cov.shape == (self.T, self.p)
 
         ll, self.stateseq = filter_and_sample_diagonal(
             self.mu_init, self.sigma_init,
-            self.A,
-            self.sigma_states,
-            self.C,
-            conditional_cov,
-            conditional_mean)
-
-        # print "states:  (", self.stateseq.min(), ", ", self.stateseq.max(), ")"
+            self.A, self.sigma_states,
+            self.C, conditional_cov, conditional_mean)
 
         assert np.all(np.isfinite(self.stateseq))
 
-
     def log_likelihood(self, conditional_mean, conditional_cov):
         assert isinstance(self.model.emission_distn, PGMultinomialRegression)
-        C = self.model.emission_distn.C
 
         assert conditional_mean.shape == (self.T, self.p)
         assert conditional_cov.shape == (self.T, self.p, self.p)
 
-        # Use stride tricks to replicate A, sigma_states, and C
-        # np.tile(self.A[None, :, :], (self.T, 1, 1))
-        A_strided = as_strided(self.A, shape=(self.T, self.n, self.n),
-                               strides=(0,) + self.A.strides)
-
-        # np.tile(self.sigma_states[None,:,:], (self.T, 1, 1))
-        sigma_states_strided = \
-            as_strided(self.sigma_states, shape=(self.T, self.n, self.n),
-                       strides=(0,) + self.sigma_states.strides)
-
-        # np.tile(C[None,:,:], (self.T,1,1))
-        C_strided = as_strided(C, shape=(self.T, self.p, self.n),
-                               strides=(0,) + C.strides)
-
-
         normalizer, _, _ = kalman_filter(
             self.mu_init, self.sigma_init,
-            A_strided,
-            sigma_states_strided,
-            C_strided,
-            conditional_cov,
-            conditional_mean)
+            self.A, self.sigma_states,
+            self.C, conditional_cov, conditional_mean)
         return normalizer
-
-    def info_log_likelihood(self, conditional_mean, conditional_prec):
-        assert isinstance(self.model.emission_distn, PGMultinomialRegression)
-        C = self.model.emission_distn.C
-
-        assert conditional_mean.shape == (self.T, self.p)
-        assert conditional_prec.shape == (self.T, self.p, self.p)
-
-        # Compute the info form potentials
-        # Initial distribution potentials
-        J_init = np.linalg.inv(self.sigma_init)
-        h_init = np.linalg.solve(self.sigma_init, self.mu_init)
-
-        # Transition potentials
-        J_22 = np.linalg.inv(self.sigma_states)
-        J_21 = -(J_22.dot(self.A))
-        J_11 = self.A.T.dot(J_22.dot(self.A))
-
-        # Use stride tricks to replicate A, sigma_states, and C
-        J_11_strided = as_strided(J_11, shape=(self.T, self.n, self.n),
-                                  strides=(0,) + J_11.strides)
-
-        J_21_strided = as_strided(J_21, shape=(self.T, self.n, self.n),
-                                  strides=(0,) + J_21.strides)
-
-        J_22_strided = as_strided(J_22, shape=(self.T, self.n, self.n),
-                                  strides=(0,) + J_22.strides)
-
-        # Observation potentials
-        J_node = np.array([C.T.dot(O).dot(C) for O in conditional_prec])
-        h_node = np.array([mu.dot(O).dot(C) for mu in conditional_mean])
-
-        # Compute the (unnormalized) log likelihood
-        ll, filtered_Js, filtered_hs = kalman_info_filter(
-            J_init, h_init,
-            J_11_strided, J_21_strided, J_22_strided,
-            J_node, h_node)
-
-        # Compute the extra normalizer terms
-        p, n = C.shape
-        T = conditional_mean.shape[0]
-
-        ll -= 1./2 * self.mu_init.dot(h_init)
-        ll -= 1./2 * np.linalg.slogdet(self.sigma_init)[1]
-        ll -= n/2. * np.log(2*np.pi)
-
-        ll -= (T-1)/2. * np.linalg.slogdet(self.A)[1]
-        ll -= (T-1)*n/2. * np.log(2*np.pi)
-
-        # # TODO: Decide whether or not to compute terms for likelihood
-        # for t in xrange(T):
-        #     O = conditional_prec[t]
-        #     ll -= 1./2 * np.einsum('ij,i,j->',O,conditional_mean[t],conditional_mean[t])
-        #     O = np.diag(np.clip(np.diag(O), 1e-16,np.inf))
-        #     ll -= 1/2. * -(np.linalg.slogdet(O)[1])
-        #     ll -= 1*p/2 * np.log(2*np.pi)
-
-        return ll
 
     def predict_states(self, conditional_mean, conditional_cov, Tpred=1, Npred=1):
         assert isinstance(self.model.emission_distn, PGMultinomialRegression)
@@ -179,11 +72,11 @@ class MultinomialLDSStates(LDSStates):
 
         return out
 
+
 class _MultinomialLDSBase(Model):
-    def __init__(self, K, n,
-                 dynamics_distn,
-                 init_dynamics_distn,
-                 C=None, sigma_C=1.0, mu_pi=None):
+    def __init__(
+            self, K, n, dynamics_distn,
+            init_dynamics_distn, C=None, sigma_C=1.0, mu_pi=None):
         self.K = K
         self.n = n
 
@@ -195,8 +88,8 @@ class _MultinomialLDSBase(Model):
         if mu_pi is None:
             mu_pi = np.ones(self.K)/self.K
 
-        self.emission_distn = PGMultinomialRegression(K, n, C=C, sigma_C=sigma_C,
-                                                      mu_pi=mu_pi)
+        self.emission_distn = PGMultinomialRegression(
+            K, n, C=C, sigma_C=sigma_C, mu_pi=mu_pi)
 
         # Initialize a list of augmented data dicts
         self.data_list = []
@@ -210,7 +103,7 @@ class _MultinomialLDSBase(Model):
         return self.dynamics_distn.A
 
     @A.setter
-    def A(self,A):
+    def A(self, A):
         self.dynamics_distn.A = A
 
     @property
@@ -218,7 +111,7 @@ class _MultinomialLDSBase(Model):
         return self.dynamics_distn.sigma
 
     @sigma_states.setter
-    def sigma_states(self,sigma_states):
+    def sigma_states(self, sigma_states):
         self.dynamics_distn.sigma = sigma_states
 
     @property
@@ -247,24 +140,18 @@ class _MultinomialLDSBase(Model):
 
     def add_data(self, data):
         assert isinstance(data, np.ndarray) \
-               and data.ndim == 2 \
-               and data.shape[1] == self.K
+            and data.ndim == 2 and data.shape[1] == self.K
         T = data.shape[0]
 
         augmented_data = {"x": data, "T": T}
 
-        # Create a states object
         augmented_data["states"] = MultinomialLDSStates(model=self, data=data)
-
         self.emission_distn.augment_data(augmented_data)
-
         self.data_list.append(augmented_data)
 
     def log_likelihood(self):
-        ll = 0
-        for data in self.data_list:
-            ll += self.emission_distn.log_likelihood(data)
-        return ll
+        return sum(self.emission_distn.log_likelihood(data)
+                   for data in self.data_list)
 
     def heldout_log_likelihood(self, X, M=100):
         return self._mc_heldout_log_likelihood(X, M)
@@ -302,34 +189,17 @@ class _MultinomialLDSBase(Model):
                            omega)
             omega = omega.reshape((T, K-1))
 
-            # TODO: Remove this
-            #  # Compute the normalization constant for this omega
-            # Z_omg = 0.5 * (kappa**2/omega).sum()
-            # Z_omg += T * (K-1)/2. * np.log(2*np.pi)
-            # Z_omg += -0.5 * np.log(omega).sum()         # 1/2 log det of Omega_t^{-1}
-
             # Exactly integrate out the latent states z using message passing
             # The "data" is the normal potential from the
             states = MultinomialLDSStates(model=self, data=X)
             conditional_mean = kappa / np.clip(omega, 1e-64,np.inf) - self.emission_distn.mu[None, :]
             conditional_prec = np.zeros((T, K-1, K-1))
-            # conditional_cov = np.zeros((T, K-1, K-1))
             for t in xrange(T):
                 conditional_prec[t,:,:] = np.diag(omega[t,:])
-                # conditional_cov[t,:,:] = np.diag(1./omega[t,:])
 
             Z_lds = states.info_log_likelihood(conditional_mean, conditional_prec)
-            # Z_lds_distn = states.log_likelihood(conditional_mean, conditional_cov)
-
-            # print ""
-            # print "Z_mul: ", Z_mul
-            # print "Info LDS: ", Z_lds
-            # print "Dist LDS: ", Z_lds_distn
-            # print "Z_omg: ", Z_omg
-            # print "hll: ", (Z_mul + Z_lds + Z_omg)
 
             # Sum them up to get the heldout log likelihood for this omega
-            # hlls[m] = Z_mul + Z_lds + Z_omg
             hlls[m] = Z_mul + Z_lds
 
         # Now take the log of the average to get the log likelihood
@@ -379,11 +249,8 @@ class _MultinomialLDSBase(Model):
 
             # Compute the normalization constant for this omega
             Z_omg = 0.5 * (kappa**2/omega).sum()
-            # Z_omg = 0.5 * (kappa[valid]**2/omega[valid]).sum()
             Z_omg += T * (K-1)/2. * np.log(2*np.pi)
-            # Z_omg += valid.sum()/2. * np.log(2*np.pi)
-            Z_omg += -0.5 * np.log(omega).sum()         # 1/2 log det of Omega_t^{-1}
-            # Z_omg += -0.5 * np.log(omega[valid]).sum()         # 1/2 log det of Omega_t^{-1}
+            Z_omg += -0.5 * np.log(omega).sum()  # 1/2 log det of Omega_t^{-1}
 
             # clip omega = zero for message passing
             # omega[~valid] = 1e-32
@@ -401,12 +268,6 @@ class _MultinomialLDSBase(Model):
             # Sum them up to get the heldout log likelihood for this omega
             hlls[m] = Z_mul + Z_omg + Z_lds
 
-            # print ""
-            # print "Z_mul: ", Z_mul
-            # print "DistLDS: ", Z_lds
-            # print "Z_omg: ", Z_omg
-            # print "hll: ", (Z_mul + Z_lds + Z_omg)
-
         # Now take the log of the average to get the log likelihood
         hll = logsumexp(hlls) - np.log(M)
 
@@ -417,7 +278,6 @@ class _MultinomialLDSBase(Model):
 
         return hll, std_hll
 
-
     def _mc_heldout_log_likelihood(self, X, M=100):
         # Estimate the held out likelihood using Monte Carlo
         T, K = X.shape
@@ -425,9 +285,6 @@ class _MultinomialLDSBase(Model):
 
         lls = np.zeros(M)
         for m in xrange(M):
-            # if m % 100 == 0:
-            #     print "Iteration ", m
-
             # Sample latent states from the prior
             data = self.generate(T=T, keep=False)
             data["x"] = X
@@ -514,11 +371,6 @@ class _MultinomialLDSGibbsSampling(_MultinomialLDSBase, ModelGibbsSampling):
             conditional_cov = self.emission_distn.conditional_cov(data, flat=True)
             data["states"].resample(conditional_mean, conditional_cov)
 
-        # for data in self.data_list:
-        #     conditional_mean = self.emission_distn.conditional_mean(data)
-        #     conditional_cov = self.emission_distn.conditional_cov(data, flat=False)
-        #     data["states"].old_resample(conditional_mean, conditional_cov)
-
     def resample_parameters(self):
         self.resample_init_dynamics_distn()
         self.resample_dynamics_distn()
@@ -547,8 +399,6 @@ class _MultinomialLDSGibbsSampling(_MultinomialLDSBase, ModelGibbsSampling):
             init_model.add_data(data["x"])
 
         print "Initializing with Gaussian LDS"
-        # for smpl in xrange(N_samples):
-        #     init_model.resample_model()
         for smpl in xrange(20):
             init_model.resample_model()
 
