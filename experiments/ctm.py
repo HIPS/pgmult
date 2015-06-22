@@ -1,5 +1,5 @@
 """
-Correlated LDA test
+Correlated topic model (LDA) test
 """
 from __future__ import division
 import os, re, gzip, time, operator, inspect, hashlib, random
@@ -33,14 +33,6 @@ all_categories = [
     'talk.politics.guns', 'talk.politics.mideast', 'talk.religion.misc',
     'alt.atheism', 'soc.religion.christian',
 ]
-
-computers = ['comp.graphics', 'comp.os.ms-windows.misc',
-             'comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware',
-             'comp.windows.x']
-religion = ['talk.religion.misc', 'alt.atheism', 'soc.religion.christian']
-cars = ['rec.autos', 'rec.motorcycles']
-sports = ['rec.sport.baseball', 'rec.sport.hockey']
-technology = ['sci.crypt', 'sci.electronics', 'sci.med', 'sci.space']
 
 cachedir = 'result_cache'
 
@@ -90,7 +82,6 @@ def cached(func):
 #############
 #  loading  #
 #############
-
 
 def load_newsgroup_data(V, cats, sort_data=True):
     from sklearn.datasets import fetch_20newsgroups
@@ -395,33 +386,11 @@ def plot_predictive_lls(result, logaddexp, **kwargs):
 #  running experiments  #
 #########################
 
-# if __name__ == '__main__':
-def run_perplexity_vs_time():
-    ## newsgroups: religion (bad)
-    # cats = religion
-    # T, V = 25, 500
-    # alpha_beta, alpha_theta = 0.001, 1.
-    # train_frac, test_frac = 0.9, 0.5
-    # data, words = load_newsgroup_data(V, cats)
-
-    ## newsgroups: cars (bad)
-    # cats = cars
-    # T, V = 25, 1000
-    # alpha_beta, alpha_theta = 0.01, 1.
-    # train_frac, test_frac = 0.9, 0.5
-    # data, words = load_newsgroup_data(V, cats)
-
-    ## newsgroups: technology (okay)
-    # cats = technology
-    # T, V = 25, 1000
-    # alpha_beta, alpha_theta = 0.01, 1.
-    # train_frac, test_frac = 0.9, 0.5
-    # data, words = load_newsgroup_data(V, cats)
-
-    ## newsgroups: computers (good)
-    # cats = computers
-    # T, V = 25, 500
-    # alpha_beta, alpha_theta = 0.001, 1.
+if __name__ == '__main__':
+    ## newsgroups
+    # cats = None  # all categories
+    # T, V = 50, 1000
+    # alpha_beta, alpha_theta = 0.1, 1.
     # train_frac, test_frac = 0.9, 0.5
     # data, words = load_newsgroup_data(V, cats)
 
@@ -453,111 +422,15 @@ def run_perplexity_vs_time():
     sb_results = fit_sbctm_gibbs(train_data, test_data, T, 1500, True, alpha_beta)
     plot_predictive_lls(sb_results, True, color=colors[2], label='SB CTM Gibbs')
 
-    all_results = {'sb':sb_results.__dict__, 'em':em_results.__dict__}
-    with open('lda_results2.pkl','w') as outfile:
+    all_results = {
+        'em': em_results,
+        'lda': lda_results,
+        'ln': ln_results,
+        'sb': sb_results,
+    }
+
+    with open('ctm_results.pkl','w') as outfile:
         pickle.dump(all_results, outfile, protocol=-1)
 
     plt.show()
 
-
-def run_perplexity_vs_trainfrac():
-    ## AP
-    T, V = 20, 500
-    alpha_beta, alpha_theta = 1., 1.
-    train_frac = 0.95
-    test_fracs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
-    data, words = load_ap_data(V)
-
-    ## print setup
-    print 'T=%d, V=%d' % (T, V)
-    print 'alpha_beta = %0.3f, alpha_theta = %0.3f' % (alpha_beta, alpha_theta)
-    print 'train_frac = %0.3f' % train_frac
-    print 'test_fracs = %s' % test_fracs
-    print
-
-    all_lda_results, all_sb_results = [], []
-    for test_frac in test_fracs:
-        ## split train test
-        train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
-
-        ## fit
-        lda_results = fit_lda_collapsed(train_data, test_data, T, 500, False, alpha_beta, alpha_theta)
-        sb_results = fit_sbctm_gibbs(train_data, test_data, T, 500, False, alpha_beta)
-
-        ## print and save
-        all_lda_results.append(lda_results)
-        all_sb_results.append(all_sb_results)
-        print '{}: lda={}, ctm={}'.format(
-            test_frac,
-            lda_results.predictive_lls[-1], sb_results.predictive_lls[-1])
-
-    ## save
-    with open('lda_trainfrac_results.pkl','w') as f:
-        pickle.dump({'lda':all_lda_results, 'sb':all_sb_results}, f,
-                    protocol=-1)
-
-
-def run_perplexity_vs_numtopics(legend=False):
-    outdir = "newsgroups_perp_vs_numtopics_001"
-
-    V = 1000
-    train_frac = 0.9
-    data, words = load_newsgroup_data(V=V)
-    train_data, test_data = split_test_train(data, train_frac=train_frac)
-
-    N_samples = 200
-    burnin = N_samples // 2
-
-    # For consistency, always start with [5, 15, 25, 50] since that's how run results are ordered
-    Ts = [5, 15, 25, 50]
-    perplexities = []
-    mean_perps = []
-    std_perps = []
-    for idx, T in enumerate(Ts):
-        print "Fitting with %d topics..." % T
-        run = 1 + idx
-
-        ## Fit the models
-        results = \
-            fit_lda_models(train_data, test_data, T, V, N_samples, run, outdir=outdir)
-
-        # Compute mean and std of burned in perplexity
-        mean_perps.append([r.perplexity[burnin:].mean() for r in results])
-        std_perps.append([r.perplexity[burnin:].std() for r in results])
-
-    # Extract mean and std from perplexity lists
-    mean_std_perplexities, mean_std_collapsed_perplexities, \
-    mean_sb_perplexities, mean_ln_perplexities = \
-        zip(*mean_perps)
-    std_std_perplexities, std_std_collapsed_perplexities, \
-    std_sb_perplexities, std_ln_perplexities = \
-        zip(*std_perps)
-
-    figure_file = os.path.join("results", outdir, "perp_vs_num_topics")
-    fig = plt.figure(figsize=(3,3))
-
-    # Plot log likelihood vs iteration
-    for ind, (perps, std_perps, label) in \
-            enumerate(zip([mean_sb_perplexities, mean_ln_perplexities, mean_std_perplexities, mean_std_collapsed_perplexities],
-                          [std_sb_perplexities, std_ln_perplexities, std_std_perplexities, std_std_collapsed_perplexities],
-                          ["SB Corr. LDA", "LN Corr. LDA", "Std. LDA", "Collapsed LDA"])):
-        plt.errorbar(Ts, perps, yerr=std_perps,
-             color=colors[ind], lw=2,
-             label=label)
-
-    if legend:
-        plt.legend(loc="upper right")
-    plt.xlabel("Number of topics")
-    plt.ylabel("Predictive Perplexity")
-
-    plt.tight_layout()
-
-    fig.savefig(figure_file + ".pdf")
-    fig.savefig(figure_file + ".png")
-    plt.show()
-
-if __name__ == '__main__':
-     # run_perplexity_vs_time()
-     # run_perplexity_vs_trainfrac()
-     # run_perplexity_vs_numtopics()
-     plot_figure_legend()
