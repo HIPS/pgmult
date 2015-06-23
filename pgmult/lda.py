@@ -198,11 +198,6 @@ class StickbreakingCorrelatedLDA(_LDABase):
         self.theta_prior = Gaussian(
             mu=mu, sigma=sigma, mu_0=mu, sigma_0=T*sigma/10.,
             nu_0=T/10., kappa_0=1./10)
-        # self.theta_prior = \
-        #     Gaussian(mu_0=mu, sigma_0=np.eye(T-1), nu_0=T, kappa_0=1./10)
-        # self.theta_prior = \
-        #     GaussianNonConj(
-        #         mu_0=mu, mu_lmbda_0=100*sigma, nu_0=T, sigma_lmbda_0=T*sigma)
 
         self.ppgs = initialize_polya_gamma_samplers()
         self.omega = np.zeros((data.shape[0], T-1))
