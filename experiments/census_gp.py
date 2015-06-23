@@ -44,57 +44,29 @@ def load_data(
         continental=False, DC=True, N_names=None, train_state=None,
         downsample=None):
 
-    # data is (years x states x names)
+    # load data, data array is (years x states x names)
     data, years, states, names = download_data(N_names, end_year)
 
-    # flatten its first two dimensions
-    flat_data = data.reshape(-1, len(names))
-    flat_years = np.repeat(years, len(states))
-    flat_states = np.tile(states, len(years))
-
-    # Get the latitude and longitude
+    # get the latitude and longitude
     loc_file = os.path.join('data','names','state_latlon.csv')
     with open(loc_file) as infile:
         latlon = {state:(float(lat),float(lon)) for
                   state, lat, lon in
                   [line.strip().split(',') for line in infile]}
-    lat, lon = np.array([latlon[st] for st in flat_states]).T
 
-    # Parse out the desired training and testing data
-    train_inds = (flat_years >= start_train_year) & (flat_years < end_train_year)
-    test_inds  = (flat_years >= end_train_year)
+    # flatten out the first two dimensions
+    flat_data, flat_years, flat_states, lat, lon = all_flat \
+        = flatten(data, years, states, names, latlon)
 
-    if train_state is not None:
-        train_inds &= (flat_states == train_state)
-        test_inds &= (flat_states == train_state)
+    # split train and test
+    train_inds, test_inds = get_train_test_ind(
+        flat_years, flat_states, train_state, continental, DC)
+    train_data, train_years, train_states, train_lat, train_lon = \
+        map(lambda arr: arr[train_inds], all_flat)
+    test_data, test_years, test_states, test_lat, test_lon = \
+        map(lambda arr: arr[test_inds], all_flat)
 
-    if continental:
-        not_AK = np.array([st.upper() != "AK" for st in flat_states])
-        train_inds &= not_AK
-        test_inds  &= not_AK
-
-        not_HI = np.array([st.upper() != "HI" for st in flat_states])
-        train_inds &= not_HI
-        test_inds  &= not_HI
-
-    if not DC:
-        not_DC = np.array([st.upper() != "DC" for st in flat_states])
-        train_inds &= not_DC
-        test_inds  &= not_DC
-
-    # Package them into named tuples
-    train_data = flat_data[train_inds]
-    train_years = flat_years[train_inds]
-    train_lat = lat[train_inds]
-    train_lon = lon[train_inds]
-    train_states = flat_states[train_inds]
-
-    test_data = flat_data[test_inds]
-    test_years = flat_years[test_inds]
-    test_lat = lat[test_inds]
-    test_lon = lon[test_inds]
-    test_states = flat_states[test_inds]
-
+    # downsample
     if downsample is not None:
         print "Downsampling data to ", downsample, " names per year/state"
         assert isinstance(downsample, int) and downsample > 0
@@ -104,7 +76,9 @@ def load_data(
     else:
         downsample_train_data = downsample_test_data = None
 
+    # put into a Dataset namedtuple
     Dataset = namedtuple("Dataset", ["K", "data", "years", "lat", "lon", "states", "names"])
+
     train = Dataset(N_names, train_data, train_years, train_lat, train_lon, train_states, names)
     test  = Dataset(N_names, test_data,  test_years,  test_lat,  test_lon,  test_states,  names)
 
@@ -124,7 +98,9 @@ def download_data(N_names, end_year):
         print 'Downloading census data for the first time...'
         urlretrieve(url, datafile)
         print '...done!'
+    print 'Loading census data from zip file...'
     alldata = parse_names_files(ZipFile(datafile), N_names, end_year)
+    print '...done!'
 
     return alldata
 
@@ -168,6 +144,39 @@ def parse_names_files(zfile, N_names, end_year):
     data = get_data_array(dct, years, states, names)
 
     return data, years, states, names
+
+
+def flatten(data, years, states, names, latlon):
+    flat_data = data.reshape(-1, len(names))
+    flat_years = np.repeat(years, len(states))
+    flat_states = np.tile(states, len(years))
+    lat, lon = np.array([latlon[st] for st in flat_states]).T
+    return flat_data, flat_years, flat_states, lat, lon
+
+
+def get_train_test_ind(flat_years, flat_states, train_state, continental, DC):
+    train_inds = (flat_years >= start_train_year) & (flat_years < end_train_year)
+    test_inds  = (flat_years >= end_train_year)
+
+    if train_state is not None:
+        train_inds &= (flat_states == train_state)
+        test_inds &= (flat_states == train_state)
+
+    if continental:
+        not_AK = np.array([st.upper() != "AK" for st in flat_states])
+        train_inds &= not_AK
+        test_inds  &= not_AK
+
+        not_HI = np.array([st.upper() != "HI" for st in flat_states])
+        train_inds &= not_HI
+        test_inds  &= not_HI
+
+    if not DC:
+        not_DC = np.array([st.upper() != "DC" for st in flat_states])
+        train_inds &= not_DC
+        test_inds  &= not_DC
+
+    return train_inds, test_inds
 
 
 #############
