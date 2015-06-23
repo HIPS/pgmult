@@ -40,12 +40,12 @@ reload(pgmult.distributions)
 #############
 
 def load_data(
-        start_train_year=1900, end_train_year=2010,
+        start_train_year=1900, end_train_year=2010, end_year=2013,
         continental=False, DC=True, N_names=None, train_state=None,
         downsample=None):
 
     # data is (years x states x names)
-    data, years, states, names = download_data(N_names)
+    data, years, states, names = download_data(N_names, end_year)
 
     # flatten its first two dimensions
     flat_data = data.reshape(-1, len(names))
@@ -116,7 +116,7 @@ def load_data(
     return downsample_train, downsample_test, train, test
 
 
-def download_data(N_names):
+def download_data(N_names, end_year):
     url = 'http://www.ssa.gov/oact/babynames/state/namesbystate.zip'
     datafile = os.path.join("data", "names", "namesbystate.zip")
 
@@ -124,20 +124,18 @@ def download_data(N_names):
         print 'Downloading census data for the first time...'
         urlretrieve(url, datafile)
         print '...done!'
-    alldata = parse_names_files(ZipFile(datafile), N_names)
+    alldata = parse_names_files(ZipFile(datafile), N_names, end_year)
 
     return alldata
 
 
-def parse_names_files(zfile, N_names):
+def parse_names_files(zfile, N_names, end_year):
     def parse_state(string):
         data = defaultdict(lambda: defaultdict(int))
-        for line in string.split('\r\n'):
-            if not line:
-                continue
+        for line in string.strip().split('\r\n'):
             state, gender, year, name, count = line.split(',')
-            if gender.lower() == 'm':
-                data[name.lower()][int(year)] = int(count)
+            if gender.lower() == 'm' and int(year) <= end_year:
+                data[name.lower()][int(year)] += int(count)
         return data
 
     def get_years(dct):
