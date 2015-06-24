@@ -1,11 +1,10 @@
 """
-Latent Dirichlet Allocation with Polya-gamma augmented
+Latent Dirichlet Allocation models, including vanilla LDA as well as correlated
+and dynamic topic models (CTMs and DTMs) employing the Polya-Gamma augmentation.
 """
 import abc
 import copy
-from itertools import izip
 import numpy as np
-import numpy.random as npr
 
 from scipy.misc import logsumexp
 from scipy.linalg import solve_triangular as _solve_triangular
@@ -14,7 +13,7 @@ from scipy.special import gammaln
 import scipy.sparse
 
 from pypolyagamma import pgdrawvpar
-from pybasicbayes.distributions import GaussianFixedMean, Gaussian, GaussianNonConj
+from pybasicbayes.distributions import Gaussian
 
 from gslrandom import multinomial_par
 
@@ -26,6 +25,10 @@ from pgmult.internals.utils import \
     initialize_pyrngs
 
 
+###
+# Util
+###
+
 def dpotrs(L, a):
     return _dpotrs(L, a, lower=True)[0]
 
@@ -35,7 +38,7 @@ def solve_triangular(L, a):
 
 
 def sample_dirichlet(a, normalize):
-    if normalize == 'vert':
+    if 'vertical'.startswith(normalize):
         return np.hstack([np.random.dirichlet(col)[:,None] for col in a.T])
     else:
         return np.vstack([np.random.dirichlet(row) for row in a])
@@ -57,9 +60,21 @@ def log_likelihood(data, wordprobs):
         + gammaln(data.sum(1)+1).sum() - gammaln(data.data+1).sum()
 
 
+def check_timestamps(timestamps):
+    assert np.all(timestamps == timestamps[np.argsort(timestamps)])
+
+
+def timeindices_from_timestamps(timestamps):
+    return timestamps - timestamps[0]
+
+
 ###
 # LDA Models
 ###
+
+# LDA and the CTMs all treat beta, z, and likelihoods the same way, so that
+# stuff is factored out into _LDABase. Since each model treats theta
+# differently, theta stuff is left abstract.
 
 class _LDABase(object):
     __metaclass__ = abc.ABCMeta
@@ -74,7 +89,7 @@ class _LDABase(object):
 
         self.pyrngs = initialize_pyrngs()
 
-        self.beta = sample_dirichlet(alpha_beta * np.ones((self.V,T)), 'vert')
+        self.initialize_beta()
         self.initialize_theta()
         self.z = np.zeros((data.data.shape[0], T), dtype='uint32')
         self.resample_z()
@@ -94,6 +109,10 @@ class _LDABase(object):
     @abc.abstractmethod
     def resample_theta(self):
         pass
+
+    def initialize_beta(self):
+        self.beta = sample_dirichlet(
+            self.alpha_beta * np.ones((self.V, self.T)), 'vert')
 
     @abc.abstractproperty
     def copy_sample(self):
@@ -126,7 +145,7 @@ class _LDABase(object):
 
     def resample_beta(self):
         self.beta = sample_dirichlet(
-            self.alpha_beta + self.word_topic_counts, 'vert')
+            self.alpha_beta + self.word_topic_counts, 'v')
 
     def resample_z(self):
         topicprobs = self.get_topicprobs(self.data)
@@ -189,6 +208,10 @@ class StandardLDA(_LDABase):
         self.doc_topic_counts = counts.doc_topic_counts
         self.word_topic_counts = counts.word_topic_counts
 
+
+###
+# Correlated LDA Models (CTMs)
+###
 
 class StickbreakingCorrelatedLDA(_LDABase):
     "Correlated LDA with the stick breaking representation"
@@ -336,3 +359,63 @@ class LogisticNormalCorrelatedLDA(_LDABase):
         del new.omega
         return new
 
+
+###
+# Dynamic LDA Models (DTMs)
+###
+
+class StickbreakingDynamicProportionsLDA(_LDABase):
+    def __init__(self, data, timestamps, T, alpha_beta):
+        check_timestamps(timestamps)
+        self.timestamps = timestamps
+        self.timeindices = timeindices_from_timestamps(timestamps)
+
+        # TODO initialize LDS parameters (A,B,C,D)
+
+        self.ppgs = initialize_polya_gamma_samplers()
+        self.omega = np.zeros((data.shape[0], T-1))
+
+        super(StickbreakingDynamicProportionsLDA, self).__init__(data, T, alpha_beta)
+
+    @property
+    def theta(self):
+        return psi_to_pi(self.psi)
+
+    @theta.setter
+    def theta(self, theta):
+        self.psi = pi_to_psi(theta)
+
+    def initialize_theta(self):
+        raise NotImplementedError('initialize psi')  # TODO
+
+    def resample(self):
+        super(StickbreakingDynamicProportionsLDA, self).resample()
+        self.resample_lds_params()
+
+    def resample_omega(self):
+        pgdrawvpar(
+            self.ppgs, N_vec(self.doc_topic_counts).astype('float64').ravel(),
+            self.psi.ravel(), self.omega.ravel())
+        np.clip(self.omega, 1e-32, np.inf, out=self.omega)
+
+    def resample_psi(self):
+        # only trick here is to compute the potentials, which will include some
+        # missing observations and some repeated observations.
+        # that is, for each document we have a potential, and we just have to
+        # add them up in the right place
+        raise NotImplementedError('resample LDS states')  # TODO
+
+    def resample_lds_params(self):
+        raise NotImplementedError('resample LDS parameters')  # TODO
+
+    def copy_sample(self):
+        raise NotImplementedError
+
+
+# In the following class, there is a distinct beta matrix for each time index,
+# so handling of beta (including computing wordprobs and topicprobs) is handled
+# slightly differently. Also, methods for initializing and updating beta are
+# overridden, unlike in all the other classes here.
+
+class StickbreakingDynamicTopicsLDA(object):
+    pass
