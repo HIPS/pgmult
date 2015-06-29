@@ -80,46 +80,58 @@ def logistic(x):
 def logit(p):
     return np.log(p/(1-p))
 
-def psi_to_pi(psi):
+def psi_to_pi(psi, axis=None):
     """
     Convert psi to a probability vector pi
     :param psi:     Length K-1 vector
     :return:        Length K normalized probability vector
     """
-    if psi.ndim == 1:
-        K = psi.size + 1
-        pi = np.zeros(K)
+    if axis is None:
+        if psi.ndim == 1:
+            K = psi.size + 1
+            pi = np.zeros(K)
 
-        # Set pi[1..K-1]
-        stick = 1.0
-        for k in range(K-1):
-            pi[k] = logistic(psi[k]) * stick
-            stick -= pi[k]
+            # Set pi[1..K-1]
+            stick = 1.0
+            for k in range(K-1):
+                pi[k] = logistic(psi[k]) * stick
+                stick -= pi[k]
 
-        # Set the last output
-        pi[-1] = stick
-        # DEBUG
-        assert np.allclose(pi.sum(), 1.0)
+            # Set the last output
+            pi[-1] = stick
+            # DEBUG
+            assert np.allclose(pi.sum(), 1.0)
 
-    elif psi.ndim == 2:
-        M, Km1 = psi.shape
-        K = Km1 + 1
-        pi = np.zeros((M,K))
+        elif psi.ndim == 2:
+            M, Km1 = psi.shape
+            K = Km1 + 1
+            pi = np.zeros((M,K))
 
-        # Set pi[1..K-1]
-        stick = np.ones(M)
-        for k in range(K-1):
-            pi[:,k] = logistic(psi[:,k]) * stick
-            stick -= pi[:,k]
+            # Set pi[1..K-1]
+            stick = np.ones(M)
+            for k in range(K-1):
+                pi[:,k] = logistic(psi[:,k]) * stick
+                stick -= pi[:,k]
 
-        # Set the last output
-        pi[:,-1] = stick
+            # Set the last output
+            pi[:,-1] = stick
 
-        # DEBUG
-        assert np.allclose(pi.sum(axis=1), 1.0)
+            # DEBUG
+            assert np.allclose(pi.sum(axis=1), 1.0)
 
+        else:
+            raise ValueError("psi must be 1 or 2D")
     else:
-        raise NotImplementedError
+        K = psi.shape[axis] + 1
+        pi = np.zeros([psi.shape[dim] if dim != axis else K for dim in range(psi.ndim)])
+        stick = np.squeeze(np.ones([psi.shape[dim] if dim != axis else 1 for dim in range(psi.ndim)]))
+        for k in range(K-1):
+            inds = [slice(None) if dim != axis else k for dim in range(psi.ndim)]
+            pi[inds] = logistic(psi[inds]) * stick
+            stick -= pi[inds]
+        pi[[slice(None) if dim != axis else -1 for dim in range(psi.ndim)]] = stick
+        assert np.allclose(pi.sum(axis=axis), 1.)
+
     return pi
 
 def pi_to_psi(pi):

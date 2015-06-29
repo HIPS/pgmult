@@ -382,11 +382,13 @@ class StickbreakingDynamicTopicsLDA(object):
 
         self.ppgs = initialize_polya_gamma_samplers()
 
-        # TODO set up LDS parameters (just sigmasq_states for now)
-        # TODO initialize psi (T x V-1 x K)
-        # TODO initialize theta (D x K)
-        # TODO initialize z (D x V x K), where time_z = (T x V x K)
-        self._update_counts()
+        self.sigmasq_states = 1.  # TODO make this learned, init from hypers
+        mean_psi = compute_uniform_mean_psi(self.V)[None,:,None]
+        self.psi = np.tile(mean_psi, (self.T, 1, self.K))
+        self.theta = sample_dirichlet(
+            self.alpha_theta * np.ones((self.D, self.K)), 'horiz')
+        self.z = np.zeros((self.D, self.V, self.K), dtype='uint32')
+        self.resample_z()
 
     @property
     def beta(self):
