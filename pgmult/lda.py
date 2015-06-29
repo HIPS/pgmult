@@ -68,6 +68,10 @@ def timeindices_from_timestamps(timestamps):
     return timestamps - timestamps[0]
 
 
+def resample_lds(sigmasq_states, sigma_obs, y):
+    raise NotImplementedError  # TODO
+
+
 ###
 # LDA Models
 ###
@@ -364,58 +368,77 @@ class LogisticNormalCorrelatedLDA(_LDABase):
 # Dynamic LDA Models (DTMs)
 ###
 
-class StickbreakingDynamicProportionsLDA(_LDABase):
-    def __init__(self, data, timestamps, T, alpha_beta):
-        check_timestamps(timestamps)
-        self.timestamps = timestamps
-        self.timeindices = timeindices_from_timestamps(timestamps)
+class StickbreakingDynamicTopicsLDA(object):
+    def __init__(self, data, timestamps, K, alpha_theta):
+        assert isinstance(data, scipy.sparse.csr.csr_matrix)
+        self.alpha_theta = alpha_theta
+        self.D, self.V = data.shape
+        self.K = K
 
-        # TODO initialize LDS parameters (A,B,C,D)
+        self.data = data
+
+        self.timestamps = timestamps
+        self.T = len(np.unique(timestamps))
 
         self.ppgs = initialize_polya_gamma_samplers()
-        self.omega = np.zeros((data.shape[0], T-1))
 
-        super(StickbreakingDynamicProportionsLDA, self).__init__(data, T, alpha_beta)
+        # TODO set up LDS parameters (just sigmasq_states for now)
+        # TODO initialize psi (T x V-1 x K)
+        # TODO initialize theta (D x K)
+        # TODO initialize z (D x V x K), where time_z = (T x V x K)
+        self._update_counts()
 
     @property
-    def theta(self):
-        return psi_to_pi(self.psi)
-
-    @theta.setter
-    def theta(self, theta):
-        self.psi = pi_to_psi(theta)
-
-    def initialize_theta(self):
-        raise NotImplementedError('initialize psi')  # TODO
+    def beta(self):
+        return psi_to_pi(self.psi, axis=1)
 
     def resample(self):
-        super(StickbreakingDynamicProportionsLDA, self).resample()
+        self.resample_z()
+        self.resample_theta()
+        self.resample_beta()
         self.resample_lds_params()
+
+    def resample_theta(self):
+        self.theta = sample_dirichlet(
+            self.alpha_theta + self.doc_topic_counts, 'horiz')
+
+    def resample_beta(self):
+        self.resample_omega()
+        y, sigma_obs = self._get_lds_effective_obs()
+        self.psi = resample_lds(self.sigmasq_states, sigma_obs, y)
+
+    def resample_z(self):
+        topicprobs = self.get_topicprobs()
+        multinomial_par(self.pyrngs, self.data.data, topicprobs, self.z)
+        self._update_counts()
 
     def resample_omega(self):
         pgdrawvpar(
-            self.ppgs, N_vec(self.doc_topic_counts).astype('float64').ravel(),
+            self.ppgs, N_vec(self.time_word_topic_counts).astype('float64').ravel(),
             self.psi.ravel(), self.omega.ravel())
         np.clip(self.omega, 1e-32, np.inf, out=self.omega)
 
-    def resample_psi(self):
-        # only trick here is to compute the potentials, which will include some
-        # missing observations and some repeated observations.
-        # that is, for each document we have a potential, and we just have to
-        # add them up in the right place
-        raise NotImplementedError('resample LDS states')  # TODO
-
     def resample_lds_params(self):
-        raise NotImplementedError('resample LDS parameters')  # TODO
+        pass  # TODO
 
-    def copy_sample(self):
-        raise NotImplementedError
+    def _get_lds_effective_obs(self):
+        return kappa_vec(self.time_word_topic_counts[:,:,k], axis=1) / self.omega, \
+            1./self.omega
+
+    def _update_counts(self):
+        self.doc_topic_counts = np.zeros((self.D, self.K), dtype='uint32')
+        self.time_word_topic_counts = np.zeros((self.T, self.V, self.K), dtype='uint32')
+        rows, cols = csr_nonzero(self.data)
+        timeidx = np.repeat(self.timestamps, np.diff(self.data.indptr))
+        for i, j, t, zvec in zip(rows, cols, timeidx, self.z):
+            self.doc_topic_counts[i] += zvec
+            self.time_word_topic_counts[t,j] += zvec
+
+    def _get_topicprobs(self):
+        rows, cols = csr_nonzero(self.data)
+        timeidx = np.repeat(self.timestamps, np.diff(self.data.indptr))
+        return normalize_rows(self.theta[rows] * self.beta[timeidx,cols])
 
 
-# In the following class, there is a distinct beta matrix for each time index,
-# so handling of beta (including computing wordprobs and topicprobs) is handled
-# slightly differently. Also, methods for initializing and updating beta are
-# overridden, unlike in all the other classes here.
-
-class StickbreakingDynamicTopicsLDA(object):
-    pass
+# TODO we probably want to operate around a uniform (or separately sampled) bias
+# point for psi

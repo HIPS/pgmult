@@ -327,33 +327,43 @@ def plot_psi_marginals(alphas):
     plt.subplot(2,1,1)
     plt.legend()
 
-def N_vec(x):
+def N_vec(x, axis=None):
     """
     Compute the count vector for PG Multinomial inference
     :param x:
     :return:
     """
-    if x.ndim == 1:
-        N = x.sum()
-        return np.concatenate(([N], N - np.cumsum(x)[:-2]))
-    elif x.ndim == 2:
-        N = x.sum(axis=1)
-        return np.hstack((N[:,None], N[:,None] - np.cumsum(x, axis=1)[:,:-2]))
+    if axis is None:
+        if x.ndim == 1:
+            N = x.sum()
+            return np.concatenate(([N], N - np.cumsum(x)[:-2]))
+        elif x.ndim == 2:
+            N = x.sum(axis=1)
+            return np.hstack((N[:,None], N[:,None] - np.cumsum(x, axis=1)[:,:-2]))
+        else:
+            raise ValueError("x must be 1 or 2D")
     else:
-        raise Exception("x must be 1 or 2D")
+        inds = [slice(None) if dim != axis else None for dim in range(x.ndim)]
+        inds2 = [slice(None) if dim != axis else slice(None,-2) for dim in range(x.ndim)]
+        N = x.sum(axis=axis)
+        return np.concatenate((N[inds], N[inds] - np.cumsum(x,axis=axis)[inds2]), axis=axis)
 
-def kappa_vec(x):
+def kappa_vec(x, axis=None):
     """
     Compute the kappa vector for PG Multinomial inference
     :param x:
     :return:
     """
-    if x.ndim == 1:
-        return x[:-1] - N_vec(x)/2.0
-    elif x.ndim == 2:
-        return x[:,:-1] - N_vec(x)/2.0
+    if axis is None:
+        if x.ndim == 1:
+            return x[:-1] - N_vec(x)/2.0
+        elif x.ndim == 2:
+            return x[:,:-1] - N_vec(x)/2.0
+        else:
+            raise ValueError("x must be 1 or 2D")
     else:
-        raise Exception("x must be 1 or 2D")
+        inds = [slice(None) if dim != axis else slice(None,-1) for dim in range(x.ndim)]
+        return x[inds] - N_vec(x, axis)/2.0
 
 # is this doing overlapping work with dirichlet_to_psi_density_closed_form?
 def get_marginal_psi_density(alpha_k, alpha_rest):
