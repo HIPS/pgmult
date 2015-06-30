@@ -42,10 +42,10 @@ def fetch_sotu():
         sotus = {date:download_text(date) for date in dates}
         print '...done!'
 
+        mkdir(os.path.dirname(path))
         with open(path, 'w') as outfile:
             pickle.dump(sotus, outfile, protocol=-1)
     else:
-        mkdir(os.path.dirname(path))
         with open(path, 'r') as infile:
             sotus = pickle.load(infile)
 
