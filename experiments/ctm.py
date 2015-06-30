@@ -223,8 +223,9 @@ Results = namedtuple(
 
 
 def fit_lnctm_em(train_data, test_data, T):
-    print 'Running CTM EM...'
-    return Results(*ctm_wrapper.fit_ctm_em(train_data, test_data, T))
+    if ctm_wrapper.has_ctm_c:
+        print 'Running CTM EM...'
+        return Results(*ctm_wrapper.fit_ctm_em(train_data, test_data, T))
 
 
 def sampler_fitter(name, cls, method, initializer):
@@ -410,7 +411,8 @@ if __name__ == '__main__':
 
     ## fit and plot
     em_results = fit_lnctm_em(train_data, test_data, T)
-    plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
+    if em_results is not None:
+        plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
 
     lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
     plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
@@ -432,4 +434,3 @@ if __name__ == '__main__':
         pickle.dump(all_results, outfile, protocol=-1)
 
     plt.show()
-

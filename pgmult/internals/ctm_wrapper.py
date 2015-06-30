@@ -21,6 +21,8 @@ ctm_binary_path = join(ctmdir, 'ctm')
 settingsfile = join(ctmdir, 'settings.txt')
 logfile = 'ctm-log.txt'
 
+has_ctm_c = os.path.exists(ctmdir)
+
 settings = [
     "em max iter 1000",
     "var max iter 20",
@@ -32,7 +34,7 @@ settings = [
     "covariance estimate mle",
 ]
 
-if not os.path.exists(ctmdir):
+if not has_ctm_c:
     print 'Please download ctm-c from {url} to {ctmdir} and build it'.format(
         url=ctm_url, ctmdir=ctmdir)
     print '(i.e. the ctm binary should be at {ctm_binary_path})'.format(
