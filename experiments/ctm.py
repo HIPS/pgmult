@@ -237,7 +237,6 @@ def sampler_fitter(name, cls, method, initializer):
                 model.log_likelihood(), \
                 model.heldout_log_likelihood(test_data), \
                 model.perplexity(test_data)
-            print '{} '.format(pll),
             return ll, pll, perp
 
         def sample(model):

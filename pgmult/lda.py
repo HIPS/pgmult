@@ -13,9 +13,9 @@ from scipy.special import gammaln
 import scipy.sparse
 
 from pypolyagamma import pgdrawvpar
-from pybasicbayes.distributions import Gaussian
-
 from gslrandom import multinomial_par
+from pybasicbayes.distributions import Gaussian
+from pylds.lds_messages_interface import filter_and_sample_diagonal
 
 from pgmult.internals.utils import \
     kappa_vec, N_vec, \
@@ -66,10 +66,6 @@ def check_timestamps(timestamps):
 
 def timeindices_from_timestamps(timestamps):
     return timestamps - timestamps[0]
-
-
-def resample_lds(sigmasq_states, sigma_obs, y):
-    raise NotImplementedError  # TODO
 
 
 ###
@@ -377,12 +373,14 @@ class StickbreakingDynamicTopicsLDA(object):
 
         self.data = data
 
-        self.timestamps = timestamps
         self.T = len(np.unique(timestamps))
+        self.timestamps = timestamps
+        self.timeidx = np.repeat(
+            timeindices_from_timestamps(timestamps), np.diff(self.data.indptr))
 
         self.ppgs = initialize_polya_gamma_samplers()
 
-        self.sigmasq_states = 1.  # TODO make this learned, init from hypers
+        self.sigmasq_states = 0.1  # TODO make this learned, init from hypers
         mean_psi = compute_uniform_mean_psi(self.V)[None,:,None]
         self.psi = np.tile(mean_psi, (self.T, 1, self.K))
         self.theta = sample_dirichlet(
@@ -407,7 +405,7 @@ class StickbreakingDynamicTopicsLDA(object):
     def resample_beta(self):
         self.resample_omega()
         y, sigma_obs = self._get_lds_effective_obs()
-        self.psi = resample_lds(self.sigmasq_states, sigma_obs, y)
+        self.psi = self._resample_lds(self.sigmasq_states, sigma_obs, y)
 
     def resample_z(self):
         topicprobs = self.get_topicprobs()
@@ -431,16 +429,24 @@ class StickbreakingDynamicTopicsLDA(object):
         self.doc_topic_counts = np.zeros((self.D, self.K), dtype='uint32')
         self.time_word_topic_counts = np.zeros((self.T, self.V, self.K), dtype='uint32')
         rows, cols = csr_nonzero(self.data)
-        timeidx = np.repeat(self.timestamps, np.diff(self.data.indptr))
-        for i, j, t, zvec in zip(rows, cols, timeidx, self.z):
+        for i, j, t, zvec in zip(rows, cols, self.timeidx, self.z):
             self.doc_topic_counts[i] += zvec
             self.time_word_topic_counts[t,j] += zvec
 
     def _get_topicprobs(self):
         rows, cols = csr_nonzero(self.data)
-        timeidx = np.repeat(self.timestamps, np.diff(self.data.indptr))
-        return normalize_rows(self.theta[rows] * self.beta[timeidx,cols])
+        return normalize_rows(self.theta[rows] * self.beta[self.timeidx,cols])
 
+    def _resample_lds(self, sigmasq_states, sigma_obs, y):
+        mu_init, sigma_init = compute_uniform_mean_psi(self.T)
+        A = np.eye(self.T-1)
+        sigma_states = sigmasq_states * np.eye(self.T-1)
+        C = np.eye(self.T-1)
+
+        _, stateseq = filter_and_sample_diagonal(
+            mu_init, sigma_init, A, sigma_states, C, sigma_obs, y)
+
+        return stateseq
 
 # TODO we probably want to operate around a uniform (or separately sampled) bias
-# point for psi
+# point for psi. or maybe LDS should just learn a mean offset.

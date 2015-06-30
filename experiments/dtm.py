@@ -1,24 +1,19 @@
 from __future__ import division
+import numpy as np
+import time
 import re
 import os
-import sys
 import operator
-from urllib2 import urlopen
 import cPickle as pickle
+import dateutil
+from urllib2 import urlopen
+from collections import namedtuple
+
+from pybasicbayes.util.text import progprint, progprint_xrange
 
 from pgmult.internals.utils import mkdir
-from ctm import get_sparse_repr
-
-
-##########
-#  util  #
-##########
-
-def progprint(itr):
-    for item in itr:
-        sys.stdout.write('.')
-        sys.stdout.flush()
-        yield item
+from ctm import get_sparse_repr, split_test_train
+from pgmult.lda import StickbreakingDynamicTopicsLDA
 
 
 #############
@@ -39,7 +34,7 @@ def fetch_sotu():
         dates = re.findall(r'<li><a href="([0-9]+)\.html">', response.read())
 
         print 'Downloading SOTU data...'
-        sotus = {date:download_text(date) for date in dates}
+        sotus = {date:download_text(date) for date in progprint(dates)}
         print '...done!'
 
         mkdir(os.path.dirname(path))
@@ -52,7 +47,76 @@ def fetch_sotu():
     return sotus
 
 
+def datestrs_to_timestamps(datestrs):
+    return [dateutil.parser.parse(datestr).year for datestr in datestrs]
+
+
 def load_sotu_data(V, sort_data=True):
     sotus = fetch_sotu()
     datestrs, texts = zip(*sorted(sotus.items(), key=operator.itemgetter(0)))
-    return datestrs, get_sparse_repr(texts, V, sort_data)
+    return datestrs_to_timestamps(datestrs), get_sparse_repr(texts, V, sort_data)
+
+
+#############
+#  fitting  #
+#############
+
+Results = namedtuple(
+    'Results', ['loglikes', 'predictive_lls', 'samples', 'timestamps'])
+
+
+def fit_sbdtm_gibbs(train_data, test_data, timestamps, K, Niter, alpha_theta):
+    def evaluate(model):
+        ll, pll = \
+            model.log_likelihood(), \
+            model.heldout_log_likelihood(test_data)
+        print '{} '.format(ll),
+        return ll, pll
+
+    def sample(model):
+        tic = time.time()
+        model.resample()
+        timestep = time.time() - tic
+        return evaluate(model), timestep
+
+    print 'Running sbdtm gibbs...'
+    model = StickbreakingDynamicTopicsLDA(K, timestamps, train_data, alpha_theta)
+    init_val = evaluate(model)
+    vals, timesteps = zip(*[sample(model) for _ in progprint_xrange(Niter)])
+
+    lls, plls = zip(*((init_val,) + vals))
+    times = np.cumsum((0,) + timesteps)
+
+    return Results(lls, plls, model.copy_sample(), times)
+
+
+#############
+#  running  #
+#############
+
+if __name__ == '__main__':
+    ## sotu
+    K, V = 25, 2500
+    alpha_theta = 1.
+    train_frac, test_frac = 0.95, 0.5
+    timestamps, (data, words) = load_sotu_data(V)
+
+    ## print setup
+    print 'K=%d, V=%d' % (K, V)
+    print 'alpha_theta = %0.3f' % alpha_theta
+    print 'train_frac = %0.3f, test_frac = %0.3f' % (train_frac, test_frac)
+    print
+
+    ## split train test
+    train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
+
+    ## fit
+    sb_results = fit_sbdtm_gibbs(train_data, test_data, timestamps, K, 100, alpha_theta)
+
+    all_results = {
+        'sb': sb_results,
+    }
+
+    with open('dtm_results.pkl','w') as outfile:
+        pickle.dump(all_results, outfile, protocol=-1)
+
