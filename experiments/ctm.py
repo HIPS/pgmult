@@ -234,8 +234,7 @@ def sampler_fitter(name, cls, method, initializer):
 
         def evaluate(model):
             ll, pll, perp = \
-                model.log_likelihood(), \
-                model.heldout_log_likelihood(test_data), \
+                model.log_likelihood(), model.log_likelihood(test_data), \
                 model.perplexity(test_data)
             return ll, pll, perp
 

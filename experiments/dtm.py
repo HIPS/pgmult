@@ -69,7 +69,7 @@ def fit_sbdtm_gibbs(train_data, test_data, timestamps, K, Niter, alpha_theta):
     def evaluate(model):
         ll, pll = \
             model.log_likelihood(), \
-            model.heldout_log_likelihood(test_data)
+            model.log_likelihood(test_data, timestamps)
         print '{} '.format(ll),
         return ll, pll
 
@@ -80,7 +80,7 @@ def fit_sbdtm_gibbs(train_data, test_data, timestamps, K, Niter, alpha_theta):
         return evaluate(model), timestep
 
     print 'Running sbdtm gibbs...'
-    model = StickbreakingDynamicTopicsLDA(K, timestamps, train_data, alpha_theta)
+    model = StickbreakingDynamicTopicsLDA(train_data, timestamps, K, alpha_theta)
     init_val = evaluate(model)
     vals, timesteps = zip(*[sample(model) for _ in progprint_xrange(Niter)])
 
@@ -96,7 +96,8 @@ def fit_sbdtm_gibbs(train_data, test_data, timestamps, K, Niter, alpha_theta):
 
 if __name__ == '__main__':
     ## sotu
-    K, V = 25, 2500
+    # K, V = 25, 2500  # TODO put back
+    K, V = 5, 100
     alpha_theta = 1.
     train_frac, test_frac = 0.95, 0.5
     timestamps, (data, words) = load_sotu_data(V)

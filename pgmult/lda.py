@@ -15,7 +15,7 @@ import scipy.sparse
 from pypolyagamma import pgdrawvpar
 from gslrandom import multinomial_par
 from pybasicbayes.distributions import Gaussian
-from pylds.lds_messages_interface import filter_and_sample_diagonal
+from pylds.lds_messages_interface import filter_and_sample_randomwalk
 
 from pgmult.internals.utils import \
     kappa_vec, N_vec, \
@@ -64,8 +64,12 @@ def check_timestamps(timestamps):
     assert np.all(timestamps == timestamps[np.argsort(timestamps)])
 
 
+def is_sorted(a):
+    return np.all(a == a[np.argsort(a)])
+
+
 def timeindices_from_timestamps(timestamps):
-    return timestamps - timestamps[0]
+    return np.array(timestamps) - timestamps[0]
 
 
 ###
@@ -125,17 +129,17 @@ class _LDABase(object):
         rows, cols = csr_nonzero(data)
         return normalize_rows(self.theta[rows] * self.beta[cols])
 
-    def log_likelihood(self):
-        # this method is separated to avoid recomputing the training gammalns
-        wordprobs = self.get_wordprobs(self.data)
-        return np.sum(np.nan_to_num(np.log(wordprobs)) * self.data.data) \
-            + self._training_gammalns
-
-    def heldout_log_likelihood(self, data):
-        return log_likelihood(data, self.get_wordprobs(data))
+    def log_likelihood(self, data=None):
+        if data is not None:
+            return log_likelihood(data, self.get_wordprobs(data))
+        else:
+            # this version avoids recomputing the training gammalns
+            wordprobs = self.get_wordprobs(self.data)
+            return np.sum(np.nan_to_num(np.log(wordprobs)) * self.data.data) \
+                + self._training_gammalns
 
     def perplexity(self, data):
-        return np.exp(-self.heldout_log_likelihood(data)
+        return np.exp(-self.log_likelihood(data)
                       / data.sum())
 
     def resample(self):
@@ -373,20 +377,43 @@ class StickbreakingDynamicTopicsLDA(object):
 
         self.data = data
 
-        self.T = len(np.unique(timestamps))
-        self.timestamps = timestamps
         self.timeidx = np.repeat(
             timeindices_from_timestamps(timestamps), np.diff(self.data.indptr))
+        assert is_sorted(self.timeidx)
+        self.timestamps = timestamps
+        self.T = self.timeidx.max() - self.timeidx.min() + 1
 
         self.ppgs = initialize_polya_gamma_samplers()
+        self.pyrngs = initialize_pyrngs()
 
+        self.initialize_parameters()
+
+        self._training_gammalns = \
+            gammaln(data.sum(1)+1).sum() - gammaln(data.data+1).sum()
+
+    def initialize_parameters(self):
         self.sigmasq_states = 0.1  # TODO make this learned, init from hypers
-        mean_psi = compute_uniform_mean_psi(self.V)[None,:,None]
+
+        mean_psi = compute_uniform_mean_psi(self.V)[0][None,:,None]
         self.psi = np.tile(mean_psi, (self.T, 1, self.K))
+
+        self.omega = np.zeros_like(self.psi)
+
         self.theta = sample_dirichlet(
             self.alpha_theta * np.ones((self.D, self.K)), 'horiz')
-        self.z = np.zeros((self.D, self.V, self.K), dtype='uint32')
+
+        self.z = np.zeros((self.data.data.shape[0], self.K), dtype='uint32')
         self.resample_z()
+
+    def log_likelihood(self, data=None, timestamps=None):
+        if data is not None:
+            return 0.  # TODO
+            # return log_likelihood(data, self._get_wordprobs(data, timeidx))
+        else:
+            # this version avoids recomputing the training gammalns
+            wordprobs = self._get_wordprobs(self.data, self.timeidx)
+            return np.sum(np.nan_to_num(np.log(wordprobs)) * self.data.data) \
+                + self._training_gammalns
 
     @property
     def beta(self):
@@ -404,11 +431,18 @@ class StickbreakingDynamicTopicsLDA(object):
 
     def resample_beta(self):
         self.resample_omega()
+        self.resample_psi()
+
+    def resample_psi(self):
+        import ipdb; ipdb.set_trace()  # TODO check shapes
         y, sigma_obs = self._get_lds_effective_obs()
-        self.psi = self._resample_lds(self.sigmasq_states, sigma_obs, y)
+        mu_init, sigma_init = \
+            np.tile(compute_uniform_mean_psi(self.V), (self.K,))
+        _, self.psi = filter_and_sample_randomwalk(
+            mu_init, sigma_init, self.sigmasq_states, sigma_obs, y)
 
     def resample_z(self):
-        topicprobs = self.get_topicprobs()
+        topicprobs = self._get_topicprobs()
         multinomial_par(self.pyrngs, self.data.data, topicprobs, self.z)
         self._update_counts()
 
@@ -437,16 +471,11 @@ class StickbreakingDynamicTopicsLDA(object):
         rows, cols = csr_nonzero(self.data)
         return normalize_rows(self.theta[rows] * self.beta[self.timeidx,cols])
 
-    def _resample_lds(self, sigmasq_states, sigma_obs, y):
-        mu_init, sigma_init = compute_uniform_mean_psi(self.T)
-        A = np.eye(self.T-1)
-        sigma_states = sigmasq_states * np.eye(self.T-1)
-        C = np.eye(self.T-1)
-
-        _, stateseq = filter_and_sample_diagonal(
-            mu_init, sigma_init, A, sigma_states, C, sigma_obs, y)
-
-        return stateseq
+    def _get_wordprobs(self, data, timeidx):
+        rows, cols = csr_nonzero(data)
+        return np.einsum('tk,tk->t',self.theta[rows],self.beta[timeidx, cols])
 
 # TODO we probably want to operate around a uniform (or separately sampled) bias
 # point for psi. or maybe LDS should just learn a mean offset.
+# TODO the LDS code currently supports a general C and even general A and
+# sigma_states; special-case it to diagonal stuff!
