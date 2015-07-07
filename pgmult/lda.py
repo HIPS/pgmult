@@ -5,7 +5,6 @@ and dynamic topic models (CTMs and DTMs) employing the Polya-Gamma augmentation.
 import abc
 import copy
 import numpy as np
-
 from scipy.misc import logsumexp
 from scipy.linalg import solve_triangular as _solve_triangular
 from scipy.linalg.lapack import dpotrs as _dpotrs
@@ -377,10 +376,8 @@ class StickbreakingDynamicTopicsLDA(object):
 
         self.data = data
 
-        self.timeidx = np.repeat(
-            timeindices_from_timestamps(timestamps), np.diff(self.data.indptr))
-        assert is_sorted(self.timeidx)
         self.timestamps = timestamps
+        self.timeidx = self._get_timeidx(timestamps, data)
         self.T = self.timeidx.max() - self.timeidx.min() + 1
 
         self.ppgs = initialize_polya_gamma_samplers()
@@ -405,10 +402,11 @@ class StickbreakingDynamicTopicsLDA(object):
         self.z = np.zeros((self.data.data.shape[0], self.K), dtype='uint32')
         self.resample_z()
 
-    def log_likelihood(self, data=None, timestamps=None):
+    def log_likelihood(self, data=None):
         if data is not None:
-            return 0.  # TODO
-            # return log_likelihood(data, self._get_wordprobs(data, timeidx))
+            return log_likelihood(
+                data, self._get_wordprobs(
+                    data, self._get_timeidx(self.timestamps, data)))
         else:
             # this version avoids recomputing the training gammalns
             wordprobs = self._get_wordprobs(self.data, self.timeidx)
@@ -434,10 +432,8 @@ class StickbreakingDynamicTopicsLDA(object):
         self.resample_psi()
 
     def resample_psi(self):
-        import ipdb; ipdb.set_trace()  # TODO check shapes
-        y, sigma_obs = self._get_lds_effective_obs()
-        mu_init, sigma_init = \
-            np.tile(compute_uniform_mean_psi(self.V), (self.K,))
+        y, sigma_obs, mu_init, sigma_init = self._get_lds_effective_params()
+        import ipdb; ipdb.set_trace()
         _, self.psi = filter_and_sample_randomwalk(
             mu_init, sigma_init, self.sigmasq_states, sigma_obs, y)
 
@@ -448,16 +444,25 @@ class StickbreakingDynamicTopicsLDA(object):
 
     def resample_omega(self):
         pgdrawvpar(
-            self.ppgs, N_vec(self.time_word_topic_counts).astype('float64').ravel(),
+            self.ppgs,
+            N_vec(self.time_word_topic_counts, axis=1)
+                .astype('float64').ravel(),
             self.psi.ravel(), self.omega.ravel())
         np.clip(self.omega, 1e-32, np.inf, out=self.omega)
 
     def resample_lds_params(self):
         pass  # TODO
 
-    def _get_lds_effective_obs(self):
-        return kappa_vec(self.time_word_topic_counts[:,:,k], axis=1) / self.omega, \
-            1./self.omega
+    def _get_lds_effective_params(self):
+        mu_uniform, sigma_uniform = compute_uniform_mean_psi(self.V)
+        mu_init = np.tile(mu_uniform, self.K)
+        sigma_init = np.tile(np.diag(sigma_uniform), self.K)
+
+        y = kappa_vec(self.time_word_topic_counts, axis=1) / self.omega
+        sigma_obs = 1./self.omega
+
+        return y.reshape(y.shape[0], -1), sigma_obs.reshape(y.shape[0], -1), \
+            mu_init, sigma_init
 
     def _update_counts(self):
         self.doc_topic_counts = np.zeros((self.D, self.K), dtype='uint32')
@@ -475,7 +480,11 @@ class StickbreakingDynamicTopicsLDA(object):
         rows, cols = csr_nonzero(data)
         return np.einsum('tk,tk->t',self.theta[rows],self.beta[timeidx, cols])
 
+    def _get_timeidx(self, timestamps, data):
+        timeidx = np.repeat(
+            timeindices_from_timestamps(timestamps), np.diff(data.indptr))
+        assert is_sorted(timeidx)
+        return timeidx
+
 # TODO we probably want to operate around a uniform (or separately sampled) bias
 # point for psi. or maybe LDS should just learn a mean offset.
-# TODO the LDS code currently supports a general C and even general A and
-# sigma_states; special-case it to diagonal stuff!
