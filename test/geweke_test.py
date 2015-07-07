@@ -1,6 +1,7 @@
 """
 Simple Geweke test for the PG-augmented Multinomial distribution
 """
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm, probplot
@@ -21,7 +22,7 @@ def geweke_test(K, N_iter=10000):
     samples = []
     for itr in xrange(N_iter):
         if itr % 10 == 0:
-            print "Iteration ", itr
+            print("Iteration ", itr)
         # Resample the data
         x = pgm.rvs(10)
 
@@ -36,7 +37,7 @@ def geweke_test(K, N_iter=10000):
     psi_samples = np.array([s.psi for s in samples])
     psi_mean = psi_samples.mean(0)
     psi_std  = psi_samples.std(0)
-    print "Mean bias: ", psi_mean, " +- ", psi_std
+    print("Mean bias: ", psi_mean, " +- ", psi_std)
 
     # Make Q-Q plots
     ind = K-2

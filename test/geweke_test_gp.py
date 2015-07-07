@@ -1,6 +1,7 @@
 """
 Simple Geweke test for the multinomial GP
 """
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -47,7 +48,7 @@ def geweke_test(K, N_iter=10000):
     # samples = []
     for itr in xrange(N_iter):
         if itr % 10 == 0:
-            print "Iteration ", itr
+            print("Iteration ", itr)
 
         # Resample the data
         _resample_X()
@@ -63,7 +64,7 @@ def geweke_test(K, N_iter=10000):
     psi_samples = np.array(psi_samples)
     psi_mean = psi_samples.mean(0)
     psi_std  = psi_samples.std(0)
-    print "Mean psi: ", psi_mean, " +- ", psi_std
+    print("Mean psi: ", psi_mean, " +- ", psi_std)
 
     # Plot sampled psi vs prior mean and variances
     fig, axs = plt.subplots(K-1, 1)

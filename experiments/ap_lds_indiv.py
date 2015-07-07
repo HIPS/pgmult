@@ -3,6 +3,7 @@ Linear dynamical system model for the AP text dataset.
 Each document is modeled as a draw from an LDS with
 categorical observations.
 """
+from __future__ import print_function
 import os
 import re
 import gzip
@@ -72,7 +73,7 @@ def download_ap():
     from urllib2 import urlopen
     import tarfile
 
-    print "Downloading AP data..."
+    print("Downloading AP data...")
     response = urlopen('http://www.cs.princeton.edu/~blei/lda-c/ap.tgz')
     tar = tarfile.open(fileobj=StringIO(response.read()))
     return tar.extractfile('ap/ap.txt').read()
@@ -142,7 +143,7 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
     Nx = len(Xs)
     assert len(Xtest) == Nx
 
-    print "Fitting HMM with %d states" % D_hmm
+    print("Fitting HMM with %d states" % D_hmm)
     models = [MultinomialHMM(K, D_hmm, alpha_0=10.0) for _ in xrange(Nx)]
 
     for X, model in zip(Xs, models):
@@ -175,7 +176,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
     Nx = len(Xs)
     assert len(Xtest) == Nx
 
-    print "Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds
+    print("Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds)
     from pylds.models import NonstationaryLDS
     models = [NonstationaryLDS(
                 init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
@@ -237,7 +238,7 @@ def fit_ln_lds_model(Xs, Xtest, D, N_samples=100):
     Nx = len(Xs)
     assert len(Xtest) == Nx
 
-    print "Fitting Logistic Normal LDS with %d states" % D
+    print("Fitting Logistic Normal LDS with %d states" % D)
     mus = [X.sum(0) + 0.1 for X in Xs]
     mus = [np.log(mu/mu.sum()) for mu in mus]
 
@@ -287,7 +288,7 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
     Nx = len(Xs)
     assert len(Xtest) == Nx
 
-    print "Fitting SBM-LDS with %d states using pMCMC" % D
+    print("Fitting SBM-LDS with %d states using pMCMC" % D)
     models = [ParticleSBMultinomialLDS(
                 init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
                 dynamics_distn=AutoRegression(nu_0=D+1,S_0=D*np.eye(D),M_0=np.zeros((D,D)),K_0=D*np.eye(D)),
@@ -489,12 +490,12 @@ def compute_singular_vectors(model, words):
         # pi_ud = C.dot(ud)
         # pi_vd = C.dot(vd)
 
-        print ""
-        print "Singular vector ", d, " Singular value, ", S[d]
-        print "Right: "
-        print top_k(5, pi_vd)
-        print "Left: "
-        print top_k(5, pi_ud)
+        print("")
+        print("Singular vector ", d, " Singular value, ", S[d])
+        print("Right: ")
+        print(top_k(5, pi_vd))
+        print("Left: ")
+        print(top_k(5, pi_ud))
 
 
 if __name__ == "__main__":
@@ -504,7 +505,7 @@ if __name__ == "__main__":
     # Make sure the results directory exists
     from pgmult.internals.utils import mkdir
     if not os.path.exists(results_dir):
-        print "Making results directory: ", results_dir
+        print("Making results directory: ", results_dir)
         mkdir(results_dir)
 
     # Load the AP news documents
@@ -533,15 +534,15 @@ if __name__ == "__main__":
         for model, method in zip(models, methods):
             results_file = os.path.join(results_dir, "results_%s_D%d.pkl.gz" % (model, D))
             if os.path.exists(results_file):
-                print "Loading from: ", results_file
+                print("Loading from: ", results_file)
                 with gzip.open(results_file, "r") as f:
                     D_model_results = cPickle.load(f)
             else:
-                print "Fitting ", model, " for D=",D
+                print("Fitting ", model, " for D=",D)
                 D_model_results = method(Xtrain, Xtest, D, N_samples)
 
                 with gzip.open(results_file, "w") as f:
-                    print "Saving to: ", results_file
+                    print("Saving to: ", results_file)
                     cPickle.dump(D_model_results, f, protocol=-1)
 
             D_results.append(D_model_results)
@@ -564,7 +565,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Compute the singular vectors
-    print "Doc 0"
-    print np.array(words)[np.where(Xfilt[docs][0])[1]]
+    print("Doc 0")
+    print(np.array(words)[np.where(Xfilt[docs][0])[1]])
     compute_singular_vectors(all_results[0][0].samples[0][0], np.array(words))
 

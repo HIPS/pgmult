@@ -6,6 +6,7 @@ Test the polya gamma identity:
 
 using Monte Carlo.
 """
+from __future__ import print_function
 
 import numpy as np
 from scipy.misc import logsumexp
@@ -31,9 +32,9 @@ def monte_carlo_approx(M=100000):
     logrhss = -b * np.log(2) + (a-b/2.)*psi -0.5 * omegas*psi**2
     logrhs = logsumexp(logrhss) - np.log(M)
 
-    print "Monte Carlo"
-    print "log LHS: ", loglhs
-    print "log RHS: ", logrhs
+    print("Monte Carlo")
+    print("log LHS: ", loglhs)
+    print("log RHS: ", logrhs)
 
 def simps_approx():
     # Compute the left hand side analytically
@@ -55,9 +56,9 @@ def simps_approx():
     y = np.exp(logy)
     rhs = simps(y, omegas)
 
-    print "Numerical Quadrature"
-    print "log LHS: ", loglhs
-    print "log RHS: ", np.log(rhs)
+    print("Numerical Quadrature")
+    print("log LHS: ", loglhs)
+    print("log RHS: ", np.log(rhs))
 
 def plot_density():
     omegas = np.linspace(1e-16, 5, 1000)
@@ -74,7 +75,7 @@ def plot_density():
 
     from scipy.integrate import simps
     Z = simps(pomega, omegas)
-    print "Z: ", Z
+    print("Z: ", Z)
 
 
 if __name__ == "__main__":

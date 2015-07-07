@@ -1,6 +1,7 @@
 """
 Multinomial observations with Gaussian process priors.
 """
+from __future__ import absolute_import
 import sys
 import numpy as np
 
@@ -12,7 +13,7 @@ from pybasicbayes.abstractions import Model, ModelGibbsSampling
 
 PROFILING = False
 from pgmult.utils.profiling import line_profiled
-from internals.utils import \
+from .internals.utils import \
     kappa_vec, N_vec, psi_to_pi, pi_to_psi, ln_psi_to_pi, ln_pi_to_psi, \
     compute_uniform_mean_psi, initialize_polya_gamma_samplers
 

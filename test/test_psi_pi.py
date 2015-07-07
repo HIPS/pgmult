@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -12,9 +13,9 @@ def test_psi_pi_conversion():
     psi = pi_to_psi(pi)
     pi2 = psi_to_pi(psi)
 
-    print "pi:  ", pi
-    print "psi: ", psi
-    print "pi2: ", pi2
+    print("pi:  ", pi)
+    print("psi: ", psi)
+    print("pi2: ", pi2)
 
     assert np.allclose(pi, pi2), "Mapping is not invertible."
 
@@ -23,8 +24,8 @@ def test_pgm_rvs():
     mu, sig = compute_uniform_mean_psi(K, sigma=2)
     # mu = np.zeros(K-1)
     # sig = np.ones(K-1)
-    print "mu:  ", mu
-    print "sig: ", sig
+    print("mu:  ", mu)
+    print("sig: ", sig)
 
     Sigma = np.diag(sig)
 
@@ -40,8 +41,8 @@ def test_pgm_rvs():
         pis.append(pgm.pi)
     pis = np.array(pis)
 
-    print "E[pi]:   ", pis.mean(axis=0)
-    print "var[pi]: ", pis.var(axis=0)
+    print("E[pi]:   ", pis.mean(axis=0))
+    print("var[pi]: ", pis.var(axis=0))
 
     plt.figure()
     plt.subplot(121)
@@ -61,7 +62,7 @@ def test_pgm_rvs():
 def test_correlated_pgm_rvs(Sigma):
     K = Sigma.shape[0] + 1
     mu, _ = compute_uniform_mean_psi(K)
-    print "mu:  ", mu
+    print("mu:  ", mu)
 
     # Sample a bunch of pis and look at the marginals
     samples = 10000
@@ -71,8 +72,8 @@ def test_correlated_pgm_rvs(Sigma):
         pis.append(psi_to_pi(psis[smpl]))
     pis = np.array(pis)
 
-    print "E[pi]:   ", pis.mean(axis=0)
-    print "var[pi]: ", pis.var(axis=0)
+    print("E[pi]:   ", pis.mean(axis=0))
+    print("var[pi]: ", pis.var(axis=0))
 
     plt.figure()
     plt.subplot(311)

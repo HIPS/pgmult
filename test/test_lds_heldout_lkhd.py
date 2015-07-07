@@ -1,6 +1,7 @@
 """
 Test the LDS held out likelihoods against a Monte Carlo comparison
 """
+from __future__ import print_function
 import numpy as np
 from scipy.misc import logsumexp
 
@@ -48,6 +49,6 @@ hll_mc, std_mc = model._mc_heldout_log_likelihood(data["x"], M=M)
 # hll_info, std_info = model._info_form_heldout_log_likelihood(data["x"], M=M)
 hll_dist, std_dist = model._distn_form_heldout_log_likelihood(data["x"], M=M)
 
-print "MC. Model: ", hll_mc, " +- ", std_mc
+print("MC. Model: ", hll_mc, " +- ", std_mc)
 # print "AN. Model (info): ", hll_info, " +- ", std_info
-print "AN. Model (dist): ", hll_dist, " +- ", std_dist
+print("AN. Model (dist): ", hll_dist, " +- ", std_dist)

@@ -1,11 +1,12 @@
 from __future__ import division
+from __future__ import absolute_import
 import numpy as np
 import os
 from os.path import join, basename, isdir
 from glob import glob
 import subprocess
 
-from utils import mkdir, ln_psi_to_pi
+from .utils import mkdir, ln_psi_to_pi
 from pgmult.lda import log_likelihood, csr_nonzero
 
 

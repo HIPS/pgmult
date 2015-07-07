@@ -1,6 +1,7 @@
 """
 Latent Dirichlet Allocation with Polya-gamma augmented
 """
+from __future__ import absolute_import
 import abc
 import copy
 from itertools import izip
@@ -177,7 +178,7 @@ class StandardLDA(_LDABase):
         self.resample_beta()
 
     def resample_z_collapsed(self,niter=1):
-        from _lda import CollapsedCounts
+        from ._lda import CollapsedCounts
 
         counts = CollapsedCounts(
             self.alpha_theta, self.alpha_beta, self.T,

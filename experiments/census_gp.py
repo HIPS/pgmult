@@ -3,6 +3,7 @@ Model the name distribution as a function of state and year using
 a spatiotemporal Gaussian Process model with multinomial observations.
 We use the Polya-gamma augmentation trick to perform fully-Bayesian inference.
 """
+from __future__ import print_function
 import os
 import time
 import gzip
@@ -13,6 +14,7 @@ import operator
 from collections import namedtuple, defaultdict
 
 import numpy as np
+from functools import reduce
 np.random.seed(0)
 from scipy.special import gammaln
 from scipy.misc import logsumexp
@@ -68,7 +70,7 @@ def load_data(
 
     # downsample
     if downsample is not None:
-        print "Downsampling data to ", downsample, " names per year/state"
+        print("Downsampling data to ", downsample, " names per year/state")
         assert isinstance(downsample, int) and downsample > 0
         from pgmult.internals.utils import downsample_data
         downsample_train_data = downsample_data(train_data, downsample)
@@ -95,12 +97,12 @@ def download_data(N_names, end_year):
     datafile = os.path.join("data", "names", "namesbystate.zip")
 
     if not os.path.exists(datafile):
-        print 'Downloading census data for the first time...'
+        print('Downloading census data for the first time...')
         urlretrieve(url, datafile)
-        print '...done!'
-    print 'Loading census data from zip file...'
+        print('...done!')
+    print('Loading census data from zip file...')
     alldata = parse_names_files(ZipFile(datafile), N_names, end_year)
-    print '...done!'
+    print('...done!')
 
     return alldata
 
@@ -214,12 +216,12 @@ def fit_gp_multinomial_model(model, test, pi_train=None, N_samples=100, run=1):
         times = [0]
 
         # Print initial values
-        print "Initial LL: ", lls[0]
-        print "Initial Pred LL: ", pred_lls[0]
+        print("Initial LL: ", lls[0])
+        print("Initial Pred LL: ", pred_lls[0])
 
 
         for itr in xrange(N_samples):
-            print "Iteration ", itr
+            print("Iteration ", itr)
             tic = time.time()
             model.resample_model(verbose=True)
             times.append(time.time()-tic)
@@ -230,8 +232,8 @@ def fit_gp_multinomial_model(model, test, pi_train=None, N_samples=100, run=1):
             pred_lls.append(pred_ll)
             pred_pis.append(pred_pi)
 
-            print "Log likelihood: ", lls[-1]
-            print "Pred Log likelihood: ", pred_ll
+            print("Log likelihood: ", lls[-1])
+            print("Pred Log likelihood: ", pred_ll)
 
             # Save this sample
             # with gzip.open(results_file + ".itr%03d.pkl.gz" % itr, "w") as f:
@@ -301,8 +303,8 @@ def compute_fraction_top_names(test, test_pis, top=10, bottom=10):
         results[i,2] = bottom_scores[test.years==yr].mean(0)
         results[i,3] = bottom_scores[test.years==yr].std(0)
 
-        print "Top: %d:  %.2f +- %.2f" % (yr, results[i,0], results[i,1])
-        print "Bot: %d:  %.2f +- %.2f" % (yr, results[i,2], results[i,3])
+        print("Top: %d:  %.2f +- %.2f" % (yr, results[i,0], results[i,1]))
+        print("Bot: %d:  %.2f +- %.2f" % (yr, results[i,2], results[i,3]))
 
     return results
 
@@ -542,7 +544,7 @@ if __name__ == "__main__":
     # Fit a static model to the last year of training data
     static_model = pgmult.distributions.IndependentMultinomialsModel(train.data[train.years==end_train_year-1])
     static_pll = compute_static_pred_ll(static_model, full_test)
-    print "Static (%d) PLL: %f" % (end_train_year-1, static_pll)
+    print("Static (%d) PLL: %f" % (end_train_year-1, static_pll))
 
     # Fit a standard GP to the raw probabilities
     # THIS OPTIMIZES THE KERNEL PARAMETERS FOR PIs!
@@ -558,7 +560,7 @@ if __name__ == "__main__":
 
         with gzip.open(results_file, "w") as f:
             pickle.dump((emp_gp_model, emp_pll, emp_ppi), f, protocol=-1)
-    print "Empirical GP PLL: ", emp_pll
+    print("Empirical GP PLL: ", emp_pll)
 
     # Get the pi_train of the empirical model
     emp_pi_train = emp_gp_model.predict(get_inputs(train))[0]
@@ -581,7 +583,7 @@ if __name__ == "__main__":
             pickle.dump((sbm_gp_samples[-1:], sbm_gp_plls, sbm_gp_ppis, sbm_gp_timestamps), f, protocol=-1)
 
     sbm_avg_pll = logsumexp(sbm_gp_plls[burnin:]) - np.log(N_samples - burnin)
-    print "Stick Breaking Multinomial GP PLL: ", sbm_avg_pll
+    print("Stick Breaking Multinomial GP PLL: ", sbm_avg_pll)
 
     # Also compute predictive likelihood of the *average* predicted pi
     # pll_gp = compute_pred_likelihood(gp_model, samples, test)
@@ -602,7 +604,7 @@ if __name__ == "__main__":
             pickle.dump((lnm_gp_samples[-1:], lnm_gp_plls, lnm_gp_ppis, lnm_gp_timestamps), f, protocol=-1)
 
     lnm_avg_pll = logsumexp(lnm_gp_plls[burnin:]) - np.log(N_samples-burnin)
-    print "Logistic Normal GP PLL: ", lnm_avg_pll
+    print("Logistic Normal GP PLL: ", lnm_avg_pll)
 
     # Also compute the PLL from average of predictive samples,
     # effectively marginalizing over Z_train using Monte Carlo
@@ -611,13 +613,13 @@ if __name__ == "__main__":
 
 
     # Compute fraction of top names predicted
-    print "Static predictions: "
+    print("Static predictions: ")
     compute_fraction_top_names(full_test, [np.vstack((static_model.pi, static_model.pi))])
-    print "Raw GP"
+    print("Raw GP")
     compute_fraction_top_names(full_test, [emp_ppi])
-    print "SBM GP"
+    print("SBM GP")
     compute_fraction_top_names(full_test, sbm_gp_ppis[burnin:])
-    print "LNM GP"
+    print("LNM GP")
     compute_fraction_top_names(full_test, lnm_gp_ppis[burnin:])
 
     plot_pred_ll_vs_time(static_pll, emp_pll,

@@ -1,6 +1,7 @@
 """
 1D GP with multinomial observations
 """
+from __future__ import print_function
 import os
 import time
 from collections import namedtuple
@@ -143,7 +144,7 @@ def fit_model(model, train_data, test_data, N_iter=100, lns=None):
 
     timestamps = [time.clock()]
     for itr in xrange(N_iter):
-        print "Iteration ", itr
+        print("Iteration ", itr)
         model.resample_model()
 
         # Collect samples
