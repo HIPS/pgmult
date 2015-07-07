@@ -70,7 +70,7 @@ def fit_sbdtm_gibbs(train_data, test_data, timestamps, K, Niter, alpha_theta):
         ll, pll = \
             model.log_likelihood(), \
             model.log_likelihood(test_data)
-        print '{} '.format(ll),
+        # print '{} '.format(ll),
         return ll, pll
 
     def sample(model):
