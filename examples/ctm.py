@@ -1,6 +1,7 @@
 """
 Correlated LDA test
 """
+from __future__ import print_function
 import time
 import operator
 import functools
@@ -18,7 +19,7 @@ from pgmult.lda import StandardLDA, StickbreakingCorrelatedLDA, LogisticNormalCo
 
 Results = namedtuple("Results", ["lls", "perplexity", "samples", "timestamps"])
 def train_model(model, train_data, test_data, N_samples=300, method='resample_model', thetas=None):
-    print 'Training %s with %s' % (model.__class__.__name__, method)
+    print('Training %s with %s' % (model.__class__.__name__, method))
     model.add_data(train_data)
 
     # Initialize to a given set of thetas
@@ -54,7 +55,7 @@ def generate_synth_data(V=10, D=10, T=5, N=100, alpha_beta=10., alpha_theta=10.,
     # true_lda = StandardLDA(T, V, alpha_beta=alpha_beta, alpha_theta=alpha_theta)
     true_lda = LogisticNormalCorrelatedLDA(T, V, alpha_beta=alpha_beta)
 
-    print "Sigma: ", true_lda.Sigma
+    print("Sigma: ", true_lda.Sigma)
 
     # true_lda = StickbreakingCorrelatedLDA(T, V, alpha_beta=alpha_beta)
     data = np.zeros((D,V),dtype=int)
@@ -107,9 +108,9 @@ if __name__ == '__main__':
 
 
     true_lda, train_data, test_data = generate_synth_data(V, D, T, N, alpha_beta, alpha_theta)
-    print 'Generating with D=%d, V=%d, N=%d, T=%d, a_beta=%0.3f, a_theta=%0.3f' % \
-        (D,V,N,T,alpha_beta,alpha_theta)
-    print
+    print('Generating with D=%d, V=%d, N=%d, T=%d, a_beta=%0.3f, a_theta=%0.3f' % \
+        (D,V,N,T,alpha_beta,alpha_theta))
+    print()
 
     # train models with MCMC
     train = functools.partial(train_model, train_data=train_data, test_data=test_data, N_samples=N_samples)

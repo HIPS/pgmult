@@ -3,6 +3,7 @@ Linear dynamical system model for the AP text dataset.
 Each document is modeled as a draw from an LDS with
 categorical observations.
 """
+from __future__ import print_function
 import os
 import gzip
 import time
@@ -199,7 +200,7 @@ if __name__ == "__main__":
     N_samples = 25
 
     # Fit the Multinomial LDS
-    print "Fitting multinomial LDS model"
+    print("Fitting multinomial LDS model")
     lds_model, lds_lls, lds_test_lls, lds_mc_test_lls, lds_pis, lds_psis, lds_zs, lds_times = \
         fit_lds_model(Xtrain, Xtest, N_samples=N_samples)
     # lds_psi_mean = lds_psis[N_samples//2:,...].mean(0)

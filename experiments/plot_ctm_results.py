@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import numpy as np
 import cPickle
@@ -73,39 +74,39 @@ def plot_correlation_matrix(Sigma,
 
         ax.text(k+1-1.5,j+1+1,string.ascii_lowercase[i], )
 
-        print ""
-        print "CC: ", C[j,k]
-        print "Topic ", j
-        print top_k(words, betas[:,j])
-        print "Topic ", k
-        print top_k(words, betas[:,k])
-        print ""
+        print("")
+        print("CC: ", C[j,k])
+        print("Topic ", j)
+        print(top_k(words, betas[:,j]))
+        print("Topic ", k)
+        print(top_k(words, betas[:,k]))
+        print("")
 
     # Find the most correlated off diagonal entry
     C_offdiag = np.tril(C,k=-1)
     sorted_pairs = np.argsort(C_offdiag.ravel())
     for i in xrange(5):
-        print ""
+        print("")
         imax,jmax = np.unravel_index(sorted_pairs[-i], (T,T))
-        print "Correlated Topics (%d, %d): " % (imax, jmax)
-        print top_k(words, betas[:,imax]), "\n and \n", top_k(words, betas[:,jmax])
-        print "correlation coeff: ", C[imax, jmax]
-        print "-" * 50
-        print ""
+        print("Correlated Topics (%d, %d): " % (imax, jmax))
+        print(top_k(words, betas[:,imax]), "\n and \n", top_k(words, betas[:,jmax]))
+        print("correlation coeff: ", C[imax, jmax])
+        print("-" * 50)
+        print("")
 
-    print "-" * 50
-    print "-" * 50
-    print "-" * 50
+    print("-" * 50)
+    print("-" * 50)
+    print("-" * 50)
 
     for i in xrange(5):
-        print ""
+        print("")
         imin,jmin = np.unravel_index(sorted_pairs[i], (T,T))
-        print "Anticorrelated Topics (%d, %d): " % (imin, jmin)
+        print("Anticorrelated Topics (%d, %d): " % (imin, jmin))
         # print topic_names[imin], " and ", topic_names[jmin]
-        print top_k(words, betas[:,imin]), "\n and \n", top_k(words, betas[:,jmin])
-        print "correlation coeff: ", C[imin, jmin]
-        print "-" * 50
-        print ""
+        print(top_k(words, betas[:,imin]), "\n and \n", top_k(words, betas[:,jmin]))
+        print("correlation coeff: ", C[imin, jmin])
+        print("-" * 50)
+        print("")
 
 
     # Move main axis ticks to top
@@ -117,9 +118,9 @@ def plot_correlation_matrix(Sigma,
 
 def print_topics(betas, words):
     for t, beta in enumerate(betas.T):
-        print "Topic ", t
-        print top_k(words, beta, k=10)
-        print ""
+        print("Topic ", t)
+        print(top_k(words, beta, k=10))
+        print("")
 
 
 def plot_pred_log_likelihood(timestamp_list,

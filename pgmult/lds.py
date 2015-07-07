@@ -1,6 +1,7 @@
 """
 Some simple models with multinomial observations and Gaussian priors.
 """
+from __future__ import print_function
 import numpy as np
 
 from scipy.special import gammaln
@@ -398,7 +399,7 @@ class _MultinomialLDSGibbsSampling(_MultinomialLDSBase, ModelGibbsSampling):
         for data in self.data_list:
             init_model.add_data(data["x"])
 
-        print "Initializing with Gaussian LDS"
+        print("Initializing with Gaussian LDS")
         for smpl in xrange(20):
             init_model.resample_model()
 

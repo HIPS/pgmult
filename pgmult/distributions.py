@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 from numpy.linalg import inv, solve
 
@@ -7,10 +8,10 @@ from scipy.misc import logsumexp
 from pybasicbayes.abstractions import Distribution, GibbsSampling, Model
 from pybasicbayes.distributions import Multinomial
 
-from internals.utils import kappa_vec, N_vec, pi_to_psi, psi_to_pi, \
+from .internals.utils import kappa_vec, N_vec, pi_to_psi, psi_to_pi, \
     ln_psi_to_pi, ln_pi_to_psi, initialize_polya_gamma_samplers, \
     compute_psi_cmoments
-from utils.profiling import line_profiled
+from .utils.profiling import line_profiled
 
 PROFILING=False
 

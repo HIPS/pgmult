@@ -1,6 +1,7 @@
 """
 Simple Geweke test for the stick breaking multinomial correlated LDA model
 """
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from pybasicbayes.util.text import progprint_xrange
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     beta_std  = betas.std(0)
 
     # Now sample from the prior for comparison
-    print "Sampling from prior"
+    print("Sampling from prior")
     from pybasicbayes.distributions import GaussianFixedMean
     from pgmult.internals.utils import compute_uniform_mean_psi, psi_to_pi
     mu, sigma0 = compute_uniform_mean_psi(T)

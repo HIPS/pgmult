@@ -1,3 +1,4 @@
+from __future__ import print_function
 from Bio import SeqIO
 import re
 import os
@@ -6,7 +7,7 @@ data_file = os.path.expanduser(os.path.join("~", "Google Drive", "data", "dna", 
 
 handle = open(data_file, "rU")
 for record in SeqIO.parse(handle, "fasta"):
-    print record.id
+    print(record.id)
 handle.close()
 
 # Parse this into a string and get rid of the N's

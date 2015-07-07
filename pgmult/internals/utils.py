@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 import os
 import numpy as np
 import scipy
 from scipy.misc import logsumexp
 from scipy.special import gammaln, beta
-from dirichlet import log_dirichlet_density
+from .dirichlet import log_dirichlet_density
 from scipy.integrate import simps
 from numpy import newaxis as na
 

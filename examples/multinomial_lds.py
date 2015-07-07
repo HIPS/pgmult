@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -58,7 +59,7 @@ pis = []
 psis = []
 zs = []
 for smpl in xrange(N_samples):
-    print "Iteration ", smpl
+    print("Iteration ", smpl)
     testmodel.resample_model()
 
     samples.append(testmodel.copy_sample())

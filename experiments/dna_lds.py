@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import gzip
 import time
@@ -73,7 +74,7 @@ def load_data():
     else:
         handle = open(data_file, "rU")
         for record in SeqIO.parse(handle, "fasta"):
-            print record.id
+            print(record.id)
         handle.close()
 
         # Parse this into a string and get rid of the N's
@@ -94,7 +95,7 @@ def load_data():
         for subseq_ind, subseq in enumerate(interesting_subseqs):
             if len(subseq) > max_subseq_len or len(subseq) < min_subseq_len:
                 continue
-            print "Analyzing subsequence ", subseq_ind, " of length ", subseq_lens[subseq_ind]
+            print("Analyzing subsequence ", subseq_ind, " of length ", subseq_lens[subseq_ind])
             X, key = discretize_seq(subseq, stride=stride, key=key)
             assert (X.sum(axis=1) == 1).all()
             Xs.append(X)
@@ -111,7 +112,7 @@ def load_data():
         for i,j in enumerate(perm):
             newkey[invkey[j]] = i
 
-        print newkey
+        print(newkey)
 
         # Save the analyzed subsequences
         with gzip.open(proc_data_file, "w") as f:
@@ -156,7 +157,7 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
     return Results(lls, test_lls, pred_lls, samples, timestamps)
 
 def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
-    print "Fitting HMM with %d states" % D_hmm
+    print("Fitting HMM with %d states" % D_hmm)
     model = MultinomialHMM(K, D_hmm)
 
     for X in Xs:
@@ -183,7 +184,7 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
 
 
 def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
-    print "Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds
+    print("Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds)
     model = DefaultLDS(n=D_gauss_lds, p=K)
 
     Xs_centered = [X - np.mean(X, axis=0)[None,:] + 1e-3*np.random.randn(*X.shape) for X in Xs]
@@ -232,8 +233,8 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
             timestamps = np.cumsum(times)
             return Results(lls, test_lls, pred_lls, samples, timestamps)
         except Exception as e:
-            print "Caught exception: ", e.message
-            print "Retrying"
+            print("Caught exception: ", e.message)
+            print("Retrying")
             n_retries += 1
 
     raise Exception("Failed to fit the Raw Gaussian LDS model in %d attempts" % max_attempts)
@@ -243,7 +244,7 @@ def fit_ln_lds_model(Xs, Xtest, D, N_samples=100):
     """
     Fit a logistic normal LDS model with pMCMC
     """
-    print "Fitting Logistic Normal LDS with %d states" % D
+    print("Fitting Logistic Normal LDS with %d states" % D)
     model = LogisticNormalMultinomialLDS(
         init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
         dynamics_distn=AutoRegression(nu_0=D+1,S_0=D*np.eye(D),M_0=np.zeros((D,D)),K_0=D*np.eye(D)),
@@ -283,7 +284,7 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
     """
     Fit a logistic normal LDS model with pMCMC
     """
-    print "Fitting SBM-LDS with %d states using pMCMC" % D
+    print("Fitting SBM-LDS with %d states using pMCMC" % D)
     model = ParticleSBMultinomialLDS(
         init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
         dynamics_distn=AutoRegression(nu_0=D+1,S_0=D*np.eye(D),M_0=np.zeros((D,D)),K_0=D*np.eye(D)),
@@ -571,7 +572,7 @@ if __name__ == "__main__":
     # Make sure the results directory exists
     from pgmult.internals.utils import mkdir
     if not os.path.exists(results_dir):
-        print "Making results directory: ", results_dir
+        print("Making results directory: ", results_dir)
         mkdir(results_dir)
 
     # Load data
@@ -601,15 +602,15 @@ if __name__ == "__main__":
         for model, method in zip(models, methods):
             results_file = os.path.join(results_dir, "results_%s_D%d.pkl.gz" % (model, D))
             if os.path.exists(results_file):
-                print "Loading from: ", results_file
+                print("Loading from: ", results_file)
                 with gzip.open(results_file, "r") as f:
                     D_model_results = cPickle.load(f)
             else:
-                print "Fitting ", model, " for D=",D
+                print("Fitting ", model, " for D=",D)
                 D_model_results = method(Xtrain, Xtest, D, N_samples)
 
                 with gzip.open(results_file, "w") as f:
-                    print "Saving to: ", results_file
+                    print("Saving to: ", results_file)
                     cPickle.dump(D_model_results, f, protocol=-1)
 
             D_results.append(D_model_results)

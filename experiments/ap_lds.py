@@ -3,6 +3,7 @@ Linear dynamical system model for the AP text dataset.
 Each document is modeled as a draw from an LDS with
 categorical observations.
 """
+from __future__ import print_function
 import os
 import re
 import gzip
@@ -64,7 +65,7 @@ def download_ap():
     from urllib2 import urlopen
     import tarfile
 
-    print "Downloading AP data..."
+    print("Downloading AP data...")
     response = urlopen('http://www.cs.princeton.edu/~blei/lda-c/ap.tgz')
     tar = tarfile.open(fileobj=StringIO(response.read()))
     return tar.extractfile('ap/ap.txt').read()
@@ -126,7 +127,7 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
     return Results(lls, test_lls, pred_lls, samples, timestamps)
 
 def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
-    print "Fitting HMM with %d states" % D_hmm
+    print("Fitting HMM with %d states" % D_hmm)
     model = MultinomialHMM(K, D_hmm, alpha_0=10.0)
 
     for X in Xs:
@@ -158,7 +159,7 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
 
 
 def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
-    print "Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds
+    print("Fitting Gaussian (Raw) LDS with %d states" % D_gauss_lds)
     # model = DefaultLDS(n=D_gauss_lds, p=K)
     # model = DefaultLDS(n=D_gauss_lds, p=K)
     from pylds.models import NonstationaryLDS
@@ -220,7 +221,7 @@ def fit_ln_lds_model(Xs, Xtest, D, N_samples=100):
     """
     Fit a logistic normal LDS model with pMCMC
     """
-    print "Fitting Logistic Normal LDS with %d states" % D
+    print("Fitting Logistic Normal LDS with %d states" % D)
     model = LogisticNormalMultinomialLDS(
         init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
         dynamics_distn=AutoRegression(nu_0=D+1,S_0=D*np.eye(D),M_0=np.zeros((D,D)),K_0=D*np.eye(D)),
@@ -263,7 +264,7 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
     """
     Fit a logistic normal LDS model with pMCMC
     """
-    print "Fitting SBM-LDS with %d states using pMCMC" % D
+    print("Fitting SBM-LDS with %d states using pMCMC" % D)
     model = ParticleSBMultinomialLDS(
         init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
         dynamics_distn=AutoRegression(nu_0=D+1,S_0=D*np.eye(D),M_0=np.zeros((D,D)),K_0=D*np.eye(D)),
@@ -425,7 +426,7 @@ def fit_joint_corpus():
     # Make sure the results directory exists
     from pgmult.internals.utils import mkdir
     if not os.path.exists(results_dir):
-        print "Making results directory: ", results_dir
+        print("Making results directory: ", results_dir)
         mkdir(results_dir)
 
     # Load the AP news documents
@@ -451,15 +452,15 @@ def fit_joint_corpus():
         for model, method in zip(models, methods):
             results_file = os.path.join(results_dir, "results_%s_D%d.pkl.gz" % (model, D))
             if os.path.exists(results_file):
-                print "Loading from: ", results_file
+                print("Loading from: ", results_file)
                 with gzip.open(results_file, "r") as f:
                     D_model_results = cPickle.load(f)
             else:
-                print "Fitting ", model, " for D=",D
+                print("Fitting ", model, " for D=",D)
                 D_model_results = method(Xtrain, Xtest, D, N_samples)
 
                 with gzip.open(results_file, "w") as f:
-                    print "Saving to: ", results_file
+                    print("Saving to: ", results_file)
                     cPickle.dump(D_model_results, f, protocol=-1)
 
             D_results.append(D_model_results)

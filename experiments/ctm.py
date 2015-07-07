@@ -2,6 +2,7 @@
 Correlated topic model (LDA) test
 """
 from __future__ import division
+from __future__ import print_function
 import os, re, gzip, time, operator, inspect, hashlib, random
 import cPickle as pickle
 from collections import namedtuple
@@ -61,7 +62,7 @@ def cached(func):
             {k:replace_arrays(v) for k,v in
                 inspect.getcallargs(func,*args,**kwargs).iteritems()}
         closurevals = \
-            [replace_arrays(cell.cell_contents) for cell in func.func_closure or []]
+            [replace_arrays(cell.cell_contents) for cell in func.__closure__ or []]
 
         key = str(hash(frozenset(argdict.items() + closurevals)))
         cachefile = cachebase + '.' + key
@@ -85,8 +86,8 @@ def cached(func):
 
 def load_newsgroup_data(V, cats, sort_data=True):
     from sklearn.datasets import fetch_20newsgroups
-    print "Downloading newsgroups data..."
-    print 'cats = %s' % cats
+    print("Downloading newsgroups data...")
+    print('cats = %s' % cats)
     newsgroups = fetch_20newsgroups(
         subset="train", categories=cats, remove=('headers', 'footers', 'quotes'))
     return get_sparse_repr(newsgroups.data, V, sort_data)
@@ -98,7 +99,7 @@ def load_ap_data(V, sort_data=True):
         from urllib2 import urlopen
         import tarfile
 
-        print "Downloading AP data..."
+        print("Downloading AP data...")
         response = urlopen('http://www.cs.princeton.edu/~blei/lda-c/ap.tgz')
         tar = tarfile.open(fileobj=StringIO(response.read()))
         return tar.extractfile('ap/ap.txt').read()
@@ -110,8 +111,8 @@ def load_ap_data(V, sort_data=True):
 def sample_documents(counts, words, num=10):
     for row in random.sample(list(counts), num):
         for col in row.nonzero()[1]:
-            print '{} '.format(words[col]),
-        print '\n'
+            print('{} '.format(words[col]), end=' ')
+        print('\n')
 
 
 def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=True):
@@ -148,7 +149,7 @@ def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=
 
     if exclude_words_not_in_training:
         unseen = np.asarray((test_data.sum(0) > 0) & (train_data.sum(0) == 0)).ravel()
-        print '{} test words were never seen in training data'.format(unseen.sum())
+        print('{} test words were never seen in training data'.format(unseen.sum()))
         test_data.data[np.in1d(test_data.indices, np.where(unseen)[0])] = 0
         assert np.sum((test_data.sum(0) > 0) & (train_data.sum(0) == 0)) == 0
 
@@ -175,9 +176,9 @@ def get_sparse_repr(docs, V, sort_data):
         counts, words = sort_vocab(counts, words)
         assert is_column_sorted(counts)
 
-    print 'loaded {} documents with a size {} vocabulary'.format(*counts.shape)
-    print 'with {} words per document on average'.format(np.mean(counts.sum(1)))
-    print
+    print('loaded {} documents with a size {} vocabulary'.format(*counts.shape))
+    print('with {} words per document on average'.format(np.mean(counts.sum(1))))
+    print()
 
     return counts, words
 
@@ -190,7 +191,7 @@ def sort_vocab(counts, words):
 
 
 def sparse_from_blocks(blocks):
-    blocklen = lambda (data, indices): data.shape[0]
+    blocklen = lambda data_indices: data_indices[0].shape[0]
     data, indices = map(np.concatenate, zip(*blocks))
     indptr = np.concatenate(((0,), np.cumsum(map(blocklen, blocks))))
     return data, indices, indptr
@@ -203,7 +204,7 @@ def sparse_to_blocks(mat):
 
 
 def sort_columns_by_counts(mat):
-    count = lambda (data, indices): data.sum()
+    count = lambda data_indices1: data_indices1[0].sum()
     sorted_cols = sorted(sparse_to_blocks(mat.tocsc()), key=count, reverse=True)
     return csc_matrix(sparse_from_blocks(sorted_cols), mat.shape).tocsr()
 
@@ -223,7 +224,7 @@ Results = namedtuple(
 
 
 def fit_lnctm_em(train_data, test_data, T):
-    print 'Running CTM EM...'
+    print('Running CTM EM...')
     return Results(*ctm_wrapper.fit_ctm_em(train_data, test_data, T))
 
 
@@ -236,7 +237,7 @@ def sampler_fitter(name, cls, method, initializer):
                 model.log_likelihood(), \
                 model.heldout_log_likelihood(test_data), \
                 model.perplexity(test_data)
-            print '{} '.format(pll),
+            print('{} '.format(pll), end=' ')
             return ll, pll, perp
 
         def sample(model):
@@ -245,7 +246,7 @@ def sampler_fitter(name, cls, method, initializer):
             timestep = time.time() - tic
             return evaluate(model), timestep
 
-        print 'Running %s...' % name
+        print('Running %s...' % name)
         model = cls(train_data, T, *args)
         model = initializer(model) if init_at_em and initializer else model
         init_val = evaluate(model)
@@ -320,9 +321,9 @@ def plot_sb_interpretable_results(sb_results, words):
     plt.colorbar()
 
     for t in range(T):
-        print 'Topic %d:' % t
-        print get_topwords(t)
-        print
+        print('Topic %d:' % t)
+        print(get_topwords(t))
+        print()
 
 
 def print_topics(std_results, std_collapsed_results, sb_results, ln_results, words, T):
@@ -336,10 +337,10 @@ def print_topics(std_results, std_collapsed_results, sb_results, ln_results, wor
     results = [std_results, std_collapsed_results, sb_results, ln_results]
 
     for name, result in zip(names, results):
-        print 'Top words for %s' % name
+        print('Top words for %s' % name)
         for t in xrange(T):
-            print 'Topic {}: {}'.format(t, ' '.join(get_topwords(result, t)))
-        print
+            print('Topic {}: {}'.format(t, ' '.join(get_topwords(result, t))))
+        print()
 
 
 def plot_figure_legend():
@@ -373,7 +374,7 @@ def plot_predictive_lls(result, logaddexp, **kwargs):
     if logaddexp:
         plt.plot(result.timestamps[2:], logma(result.predictive_lls), **plot_kwargs)
 
-    print result.predictive_lls[-10:]
+    print(result.predictive_lls[-10:])
 
     plt.legend(loc='lower right')
     plt.xlabel('Time (sec)')
@@ -400,10 +401,10 @@ if __name__ == '__main__':
     data, words = load_ap_data(V)
 
     ## print setup
-    print 'T=%d, V=%d' % (T, V)
-    print 'alpha_beta = %0.3f, alpha_theta = %0.3f' % (alpha_beta, alpha_theta)
-    print 'train_frac = %0.3f, test_frac = %0.3f' % (train_frac, test_frac)
-    print
+    print('T=%d, V=%d' % (T, V))
+    print('alpha_beta = %0.3f, alpha_theta = %0.3f' % (alpha_beta, alpha_theta))
+    print('train_frac = %0.3f, test_frac = %0.3f' % (train_frac, test_frac))
+    print()
 
     ## split train test
     train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
