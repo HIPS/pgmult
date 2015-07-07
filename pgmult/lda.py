@@ -432,10 +432,11 @@ class StickbreakingDynamicTopicsLDA(object):
         self.resample_psi()
 
     def resample_psi(self):
-        y, sigma_obs, mu_init, sigma_init = self._get_lds_effective_params()
-        import ipdb; ipdb.set_trace()
-        _, self.psi = filter_and_sample_randomwalk(
-            mu_init, sigma_init, self.sigmasq_states, sigma_obs, y)
+        mu_init, sigma_init, sigma_states, sigma_obs, y = \
+            self._get_lds_effective_params()
+        _, psi_flat = filter_and_sample_randomwalk(
+            mu_init, sigma_init, sigma_states, sigma_obs, y)
+        self.psi = psi_flat.reshape(self.psi.shape)
 
     def resample_z(self):
         topicprobs = self._get_topicprobs()
@@ -458,11 +459,13 @@ class StickbreakingDynamicTopicsLDA(object):
         mu_init = np.tile(mu_uniform, self.K)
         sigma_init = np.tile(np.diag(sigma_uniform), self.K)
 
-        y = kappa_vec(self.time_word_topic_counts, axis=1) / self.omega
-        sigma_obs = 1./self.omega
+        sigma_states = np.repeat(self.sigmasq_states, (self.V - 1) * self.K)
 
-        return y.reshape(y.shape[0], -1), sigma_obs.reshape(y.shape[0], -1), \
-            mu_init, sigma_init
+        sigma_obs = 1./self.omega
+        y = kappa_vec(self.time_word_topic_counts, axis=1) / self.omega
+
+        return mu_init, sigma_init, sigma_states, \
+            sigma_obs.reshape(y.shape[0], -1), y.reshape(y.shape[0], -1)
 
     def _update_counts(self):
         self.doc_topic_counts = np.zeros((self.D, self.K), dtype='uint32')
