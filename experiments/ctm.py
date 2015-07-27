@@ -132,9 +132,9 @@ def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=
     split into training rows and testing rows, and second to split the testing
     rows into training counts and held-out counts.
 
-    The 'train_frac' and 'test_frac' inputs control how many rows are marked as
-    training rows and what fraction of words within test rows are held out,
-    respectively.
+    The 'train_frac' and 'test_frac' inputs control what fraction of rows are
+    marked as training rows and what fraction of words within test rows are held
+    out, respectively.
     '''
 
     def split_rows(mat, p):
