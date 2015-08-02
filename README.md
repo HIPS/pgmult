@@ -98,8 +98,8 @@ Take a look at `pgmult.lda.StickbreakingCorrelatedLDA` for the full
 implementation.
 
 The essence of the CTM is to replace the Dirichlet prior for `theta`, the array
-of topic proportions with one row per document, with a Gaussian `psi` fed
-through a kind of logistic map:
+of topic proportions with one row per document, with a Gaussian-distributed
+`psi` fed through a kind of logistic map:
 ```python
 class StickbreakingCorrelatedLDA(_LDABase):
     # def __init__(...):
