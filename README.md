@@ -78,7 +78,7 @@ easier for all kinds of models.
 
 ### Example: implementing a correlated topic model
 The variational EM algorithm for CTMs isn't so easy to implement; just check
-out [Appendix A of the CTM
+out Appendix A of the [CTM
 paper](https://www.cs.princeton.edu/~blei/papers/BleiLafferty2006.pdf)
 for the details on the variational E step.
 It's a block coordinate ascent procedure in which one block is optimized using
