@@ -43,6 +43,12 @@ def sample_dirichlet(a, normalize):
         return np.vstack([np.random.dirichlet(row) for row in a])
 
 
+def sample_infogaussian(J, h, randvec=None):
+    randvec = randvec if randvec is not None else np.random.randn(h.shape[0])
+    L = np.linalg.cholesky(J)
+    return dpotrs(L, h) + solve_triangular(L, randvec)
+
+
 def csr_nonzero(mat):
     rows = np.arange(mat.shape[0]).repeat(np.diff(mat.indptr))
     cols = mat.indices
@@ -256,15 +262,14 @@ class StickbreakingCorrelatedLDA(_LDABase):
         np.clip(self.omega, 1e-32, np.inf, out=self.omega)
 
     def resample_psi(self):
-        mu = self.theta_prior.mu
         Lmbda = np.linalg.inv(self.theta_prior.sigma)
-        randvec = np.random.randn(self.D, self.T-1)
+        h = Lmbda.dot(self.theta_prior.mu)
+        randvec = np.random.randn(self.D, self.T-1)  # pre-generate randomness
 
         for d, c in enumerate(self.doc_topic_counts):
-            Lmbda_post = Lmbda + np.diag(self.omega[d])
-            h_post = Lmbda.dot(mu) + kappa_vec(c)
-            L = np.linalg.cholesky(Lmbda_post)
-            self.psi[d] = dpotrs(L, h_post) + solve_triangular(L, randvec[d])
+            self.psi[d] = sample_infogaussian(
+                Lmbda + np.diag(self.omega[d]), h + kappa_vec(c),
+                randvec[d])
 
     def resample_theta_prior(self):
         self.theta_prior.resample(self.psi)
