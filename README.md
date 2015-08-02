@@ -92,8 +92,8 @@ lines in `pgmult.lda._LDABase`, with pgmult the main inference step in a
 correlated topic model takes just a handful of lines.
 
 Here we'll show the key lines in the implementation of
-`StickbreakingCorrelatedLDA`, leaving out just the boilerplate `__init__`
-method.
+`StickbreakingCorrelatedLDA`, leaving out just the `__init__`
+method and some boilerplate.
 Take a look at `pgmult.lda.StickbreakingCorrelatedLDA` for the full
 implementation.
 
