@@ -1,13 +1,11 @@
 """
-Latent Dirichlet Allocation with Polya-gamma augmented
+Latent Dirichlet Allocation models, including vanilla LDA as well as correlated
+and dynamic topic models (CTMs and DTMs) employing the Polya-Gamma augmentation.
 """
 from __future__ import absolute_import
 import abc
 import copy
-from itertools import izip
 import numpy as np
-import numpy.random as npr
-
 from scipy.misc import logsumexp
 from scipy.linalg import solve_triangular as _solve_triangular
 from scipy.linalg.lapack import dpotrs as _dpotrs
@@ -15,9 +13,9 @@ from scipy.special import gammaln
 import scipy.sparse
 
 from pypolyagamma import pgdrawvpar
-from pybasicbayes.distributions import GaussianFixedMean, Gaussian, GaussianNonConj
-
 from gslrandom import multinomial_par
+from pybasicbayes.distributions import Gaussian
+from pylds.lds_messages_interface import filter_and_sample_randomwalk
 
 from pgmult.internals.utils import \
     kappa_vec, N_vec, \
@@ -26,6 +24,10 @@ from pgmult.internals.utils import \
     initialize_polya_gamma_samplers, \
     initialize_pyrngs
 
+
+###
+# Util
+###
 
 def dpotrs(L, a):
     return _dpotrs(L, a, lower=True)[0]
@@ -36,10 +38,16 @@ def solve_triangular(L, a):
 
 
 def sample_dirichlet(a, normalize):
-    if normalize == 'vert':
+    if 'vertical'.startswith(normalize):
         return np.hstack([np.random.dirichlet(col)[:,None] for col in a.T])
     else:
         return np.vstack([np.random.dirichlet(row) for row in a])
+
+
+def sample_infogaussian(J, h, randvec=None):
+    randvec = randvec if randvec is not None else np.random.randn(h.shape[0])
+    L = np.linalg.cholesky(J)
+    return dpotrs(L, h) + solve_triangular(L, randvec)
 
 
 def csr_nonzero(mat):
@@ -58,9 +66,25 @@ def log_likelihood(data, wordprobs):
         + gammaln(data.sum(1)+1).sum() - gammaln(data.data+1).sum()
 
 
+def check_timestamps(timestamps):
+    assert np.all(timestamps == timestamps[np.argsort(timestamps)])
+
+
+def is_sorted(a):
+    return np.all(a == a[np.argsort(a)])
+
+
+def timeindices_from_timestamps(timestamps):
+    return np.array(timestamps) - timestamps[0]
+
+
 ###
 # LDA Models
 ###
+
+# LDA and the CTMs all treat beta, z, and likelihoods the same way, so that
+# stuff is factored out into _LDABase. Since each model treats theta
+# differently, theta stuff is left abstract.
 
 class _LDABase(object):
     __metaclass__ = abc.ABCMeta
@@ -75,7 +99,7 @@ class _LDABase(object):
 
         self.pyrngs = initialize_pyrngs()
 
-        self.beta = sample_dirichlet(alpha_beta * np.ones((self.V,T)), 'vert')
+        self.initialize_beta()
         self.initialize_theta()
         self.z = np.zeros((data.data.shape[0], T), dtype='uint32')
         self.resample_z()
@@ -96,6 +120,10 @@ class _LDABase(object):
     def resample_theta(self):
         pass
 
+    def initialize_beta(self):
+        self.beta = sample_dirichlet(
+            self.alpha_beta * np.ones((self.V, self.T)), 'vert')
+
     @abc.abstractproperty
     def copy_sample(self):
         pass
@@ -107,17 +135,17 @@ class _LDABase(object):
         rows, cols = csr_nonzero(data)
         return normalize_rows(self.theta[rows] * self.beta[cols])
 
-    def log_likelihood(self):
-        # this method is separated to avoid recomputing the training gammalns
-        wordprobs = self.get_wordprobs(self.data)
-        return np.sum(np.nan_to_num(np.log(wordprobs)) * self.data.data) \
-            + self._training_gammalns
-
-    def heldout_log_likelihood(self, data):
-        return log_likelihood(data, self.get_wordprobs(data))
+    def log_likelihood(self, data=None):
+        if data is not None:
+            return log_likelihood(data, self.get_wordprobs(data))
+        else:
+            # this version avoids recomputing the training gammalns
+            wordprobs = self.get_wordprobs(self.data)
+            return np.sum(np.nan_to_num(np.log(wordprobs)) * self.data.data) \
+                + self._training_gammalns
 
     def perplexity(self, data):
-        return np.exp(-self.heldout_log_likelihood(data)
+        return np.exp(-self.log_likelihood(data)
                       / data.sum())
 
     def resample(self):
@@ -127,7 +155,7 @@ class _LDABase(object):
 
     def resample_beta(self):
         self.beta = sample_dirichlet(
-            self.alpha_beta + self.word_topic_counts, 'vert')
+            self.alpha_beta + self.word_topic_counts, 'v')
 
     def resample_z(self):
         topicprobs = self.get_topicprobs(self.data)
@@ -191,6 +219,10 @@ class StandardLDA(_LDABase):
         self.word_topic_counts = counts.word_topic_counts
 
 
+###
+# Correlated LDA Models (CTMs)
+###
+
 class StickbreakingCorrelatedLDA(_LDABase):
     "Correlated LDA with the stick breaking representation"
 
@@ -231,15 +263,14 @@ class StickbreakingCorrelatedLDA(_LDABase):
         np.clip(self.omega, 1e-32, np.inf, out=self.omega)
 
     def resample_psi(self):
-        mu = self.theta_prior.mu
         Lmbda = np.linalg.inv(self.theta_prior.sigma)
-        randvec = np.random.randn(self.D, self.T-1)
+        h = Lmbda.dot(self.theta_prior.mu)
+        randvec = np.random.randn(self.D, self.T-1)  # pre-generate randomness
 
         for d, c in enumerate(self.doc_topic_counts):
-            Lmbda_post = Lmbda + np.diag(self.omega[d])
-            h_post = Lmbda.dot(mu) + kappa_vec(c)
-            L = np.linalg.cholesky(Lmbda_post)
-            self.psi[d] = dpotrs(L, h_post) + solve_triangular(L, randvec[d])
+            self.psi[d] = sample_infogaussian(
+                Lmbda + np.diag(self.omega[d]), h + kappa_vec(c),
+                randvec[d])
 
     def resample_theta_prior(self):
         self.theta_prior.resample(self.psi)
@@ -337,3 +368,132 @@ class LogisticNormalCorrelatedLDA(_LDABase):
         del new.omega
         return new
 
+
+###
+# Dynamic LDA Models (DTMs)
+###
+
+class StickbreakingDynamicTopicsLDA(object):
+    def __init__(self, data, timestamps, K, alpha_theta):
+        assert isinstance(data, scipy.sparse.csr.csr_matrix)
+        self.alpha_theta = alpha_theta
+        self.D, self.V = data.shape
+        self.K = K
+
+        self.data = data
+
+        self.timestamps = timestamps
+        self.timeidx = self._get_timeidx(timestamps, data)
+        self.T = self.timeidx.max() - self.timeidx.min() + 1
+
+        self.ppgs = initialize_polya_gamma_samplers()
+        self.pyrngs = initialize_pyrngs()
+
+        self.initialize_parameters()
+
+        self._training_gammalns = \
+            gammaln(data.sum(1)+1).sum() - gammaln(data.data+1).sum()
+
+    def initialize_parameters(self):
+        self.sigmasq_states = 0.1  # TODO make this learned, init from hypers
+
+        mean_psi = compute_uniform_mean_psi(self.V)[0][None,:,None]
+        self.psi = np.tile(mean_psi, (self.T, 1, self.K))
+
+        self.omega = np.zeros_like(self.psi)
+
+        self.theta = sample_dirichlet(
+            self.alpha_theta * np.ones((self.D, self.K)), 'horiz')
+
+        self.z = np.zeros((self.data.data.shape[0], self.K), dtype='uint32')
+        self.resample_z()
+
+    def log_likelihood(self, data=None):
+        if data is not None:
+            return log_likelihood(
+                data, self._get_wordprobs(
+                    data, self._get_timeidx(self.timestamps, data)))
+        else:
+            # this version avoids recomputing the training gammalns
+            wordprobs = self._get_wordprobs(self.data, self.timeidx)
+            return np.sum(np.nan_to_num(np.log(wordprobs)) * self.data.data) \
+                + self._training_gammalns
+
+    @property
+    def beta(self):
+        return psi_to_pi(self.psi, axis=1)
+
+    def resample(self):
+        self.resample_z()
+        self.resample_theta()
+        self.resample_beta()
+        self.resample_lds_params()
+
+    def resample_theta(self):
+        self.theta = sample_dirichlet(
+            self.alpha_theta + self.doc_topic_counts, 'horiz')
+
+    def resample_beta(self):
+        self.resample_omega()
+        self.resample_psi()
+
+    def resample_psi(self):
+        mu_init, sigma_init, sigma_states, sigma_obs, y = \
+            self._get_lds_effective_params()
+        _, psi_flat = filter_and_sample_randomwalk(
+            mu_init, sigma_init, sigma_states, sigma_obs, y)
+        self.psi = psi_flat.reshape(self.psi.shape)
+
+    def resample_z(self):
+        topicprobs = self._get_topicprobs()
+        multinomial_par(self.pyrngs, self.data.data, topicprobs, self.z)
+        self._update_counts()
+
+    def resample_omega(self):
+        pgdrawvpar(
+            self.ppgs,
+            N_vec(self.time_word_topic_counts, axis=1)
+                .astype('float64').ravel(),
+            self.psi.ravel(), self.omega.ravel())
+        np.clip(self.omega, 1e-32, np.inf, out=self.omega)
+
+    def resample_lds_params(self):
+        pass  # TODO
+
+    def _get_lds_effective_params(self):
+        mu_uniform, sigma_uniform = compute_uniform_mean_psi(self.V)
+        mu_init = np.tile(mu_uniform, self.K)
+        sigma_init = np.tile(np.diag(sigma_uniform), self.K)
+
+        sigma_states = np.repeat(self.sigmasq_states, (self.V - 1) * self.K)
+
+        sigma_obs = 1./self.omega
+        y = kappa_vec(self.time_word_topic_counts, axis=1) / self.omega
+
+        return mu_init, sigma_init, sigma_states, \
+            sigma_obs.reshape(y.shape[0], -1), y.reshape(y.shape[0], -1)
+
+    def _update_counts(self):
+        self.doc_topic_counts = np.zeros((self.D, self.K), dtype='uint32')
+        self.time_word_topic_counts = np.zeros((self.T, self.V, self.K), dtype='uint32')
+        rows, cols = csr_nonzero(self.data)
+        for i, j, t, zvec in zip(rows, cols, self.timeidx, self.z):
+            self.doc_topic_counts[i] += zvec
+            self.time_word_topic_counts[t,j] += zvec
+
+    def _get_topicprobs(self):
+        rows, cols = csr_nonzero(self.data)
+        return normalize_rows(self.theta[rows] * self.beta[self.timeidx,cols])
+
+    def _get_wordprobs(self, data, timeidx):
+        rows, cols = csr_nonzero(data)
+        return np.einsum('tk,tk->t',self.theta[rows],self.beta[timeidx, cols])
+
+    def _get_timeidx(self, timestamps, data):
+        timeidx = np.repeat(
+            timeindices_from_timestamps(timestamps), np.diff(data.indptr))
+        assert is_sorted(timeidx)
+        return timeidx
+
+# TODO we probably want to operate around a uniform (or separately sampled) bias
+# point for psi. or maybe LDS should just learn a mean offset.

@@ -13,11 +13,16 @@ from pgmult.lda import log_likelihood, csr_nonzero
 # TODO implement 'seed' init for our models
 
 
+ctm_url = 'http://www.cs.princeton.edu/~blei/ctm-c/ctm-dist.tgz'
 documentfile = 'documents.ldac'
-ctmdir = 'ctm-dist'
+ctmdir = 'deps/ctm-dist'
+datadir = os.path.join('data','ctm')
+resultsdir = os.path.join('data','ctm','results')
 ctm_binary_path = join(ctmdir, 'ctm')
 settingsfile = join(ctmdir, 'settings.txt')
 logfile = 'ctm-log.txt'
+
+has_ctm_c = os.path.exists(ctmdir)
 
 settings = [
     "em max iter 1000",
@@ -30,6 +35,13 @@ settings = [
     "covariance estimate mle",
 ]
 
+if not has_ctm_c:
+    print 'Please download ctm-c from {url} to {ctmdir} and build it'.format(
+        url=ctm_url, ctmdir=ctmdir)
+    print '(i.e. the ctm binary should be at {ctm_binary_path})'.format(
+        ctm_binary_path=ctm_binary_path)
+
+mkdir(os.path.dirname(settingsfile))
 with open(settingsfile, 'w') as outfile:
     outfile.writelines('\n'.join(settings))
 
@@ -118,12 +130,11 @@ def compute_perplexities(vals, test_data, smoothing):
             / test_data.sum()) for val in vals]
 
 
-def fit_ctm_em(train, test, T, datadir='ctm-dist', out_dir='ctm-out'):
-    idx = dump_ldac_dataset(train, datadir='ctm-dist')
-    fit_ldac_ctm(num_topics=T, datadir='ctm-dist', resultsdir='ctm-out')
-    iters, times, vals = load_ldac_ctm_results(idx, resultsdir='ctm-out')
+def fit_ctm_em(train, test, T):
+    idx = dump_ldac_dataset(train, datadir=datadir)
+    fit_ldac_ctm(num_topics=T, datadir=datadir, resultsdir=resultsdir)
+    iters, times, vals = load_ldac_ctm_results(idx, resultsdir=resultsdir)
     lls = compute_loglikes(vals, train, smoothing=None)
     perplexities = compute_perplexities(vals, test, smoothing=None)
     plls = compute_loglikes(vals, test, smoothing=None)
     return lls, plls, perplexities, vals, times
-

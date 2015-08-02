@@ -81,46 +81,58 @@ def logistic(x):
 def logit(p):
     return np.log(p/(1-p))
 
-def psi_to_pi(psi):
+def psi_to_pi(psi, axis=None):
     """
     Convert psi to a probability vector pi
     :param psi:     Length K-1 vector
     :return:        Length K normalized probability vector
     """
-    if psi.ndim == 1:
-        K = psi.size + 1
-        pi = np.zeros(K)
+    if axis is None:
+        if psi.ndim == 1:
+            K = psi.size + 1
+            pi = np.zeros(K)
 
-        # Set pi[1..K-1]
-        stick = 1.0
-        for k in range(K-1):
-            pi[k] = logistic(psi[k]) * stick
-            stick -= pi[k]
+            # Set pi[1..K-1]
+            stick = 1.0
+            for k in range(K-1):
+                pi[k] = logistic(psi[k]) * stick
+                stick -= pi[k]
 
-        # Set the last output
-        pi[-1] = stick
-        # DEBUG
-        assert np.allclose(pi.sum(), 1.0)
+            # Set the last output
+            pi[-1] = stick
+            # DEBUG
+            assert np.allclose(pi.sum(), 1.0)
 
-    elif psi.ndim == 2:
-        M, Km1 = psi.shape
-        K = Km1 + 1
-        pi = np.zeros((M,K))
+        elif psi.ndim == 2:
+            M, Km1 = psi.shape
+            K = Km1 + 1
+            pi = np.zeros((M,K))
 
-        # Set pi[1..K-1]
-        stick = np.ones(M)
-        for k in range(K-1):
-            pi[:,k] = logistic(psi[:,k]) * stick
-            stick -= pi[:,k]
+            # Set pi[1..K-1]
+            stick = np.ones(M)
+            for k in range(K-1):
+                pi[:,k] = logistic(psi[:,k]) * stick
+                stick -= pi[:,k]
 
-        # Set the last output
-        pi[:,-1] = stick
+            # Set the last output
+            pi[:,-1] = stick
 
-        # DEBUG
-        assert np.allclose(pi.sum(axis=1), 1.0)
+            # DEBUG
+            assert np.allclose(pi.sum(axis=1), 1.0)
 
+        else:
+            raise ValueError("psi must be 1 or 2D")
     else:
-        raise NotImplementedError
+        K = psi.shape[axis] + 1
+        pi = np.zeros([psi.shape[dim] if dim != axis else K for dim in range(psi.ndim)])
+        stick = np.squeeze(np.ones([psi.shape[dim] if dim != axis else 1 for dim in range(psi.ndim)]))
+        for k in range(K-1):
+            inds = [slice(None) if dim != axis else k for dim in range(psi.ndim)]
+            pi[inds] = logistic(psi[inds]) * stick
+            stick -= pi[inds]
+        pi[[slice(None) if dim != axis else -1 for dim in range(psi.ndim)]] = stick
+        assert np.allclose(pi.sum(axis=axis), 1.)
+
     return pi
 
 def pi_to_psi(pi):
@@ -328,33 +340,43 @@ def plot_psi_marginals(alphas):
     plt.subplot(2,1,1)
     plt.legend()
 
-def N_vec(x):
+def N_vec(x, axis=None):
     """
     Compute the count vector for PG Multinomial inference
     :param x:
     :return:
     """
-    if x.ndim == 1:
-        N = x.sum()
-        return np.concatenate(([N], N - np.cumsum(x)[:-2]))
-    elif x.ndim == 2:
-        N = x.sum(axis=1)
-        return np.hstack((N[:,None], N[:,None] - np.cumsum(x, axis=1)[:,:-2]))
+    if axis is None:
+        if x.ndim == 1:
+            N = x.sum()
+            return np.concatenate(([N], N - np.cumsum(x)[:-2]))
+        elif x.ndim == 2:
+            N = x.sum(axis=1)
+            return np.hstack((N[:,None], N[:,None] - np.cumsum(x, axis=1)[:,:-2]))
+        else:
+            raise ValueError("x must be 1 or 2D")
     else:
-        raise Exception("x must be 1 or 2D")
+        inds = [slice(None) if dim != axis else None for dim in range(x.ndim)]
+        inds2 = [slice(None) if dim != axis else slice(None,-2) for dim in range(x.ndim)]
+        N = x.sum(axis=axis)
+        return np.concatenate((N[inds], N[inds] - np.cumsum(x,axis=axis)[inds2]), axis=axis)
 
-def kappa_vec(x):
+def kappa_vec(x, axis=None):
     """
     Compute the kappa vector for PG Multinomial inference
     :param x:
     :return:
     """
-    if x.ndim == 1:
-        return x[:-1] - N_vec(x)/2.0
-    elif x.ndim == 2:
-        return x[:,:-1] - N_vec(x)/2.0
+    if axis is None:
+        if x.ndim == 1:
+            return x[:-1] - N_vec(x)/2.0
+        elif x.ndim == 2:
+            return x[:,:-1] - N_vec(x)/2.0
+        else:
+            raise ValueError("x must be 1 or 2D")
     else:
-        raise Exception("x must be 1 or 2D")
+        inds = [slice(None) if dim != axis else slice(None,-1) for dim in range(x.ndim)]
+        return x[inds] - N_vec(x, axis)/2.0
 
 # is this doing overlapping work with dirichlet_to_psi_density_closed_form?
 def get_marginal_psi_density(alpha_k, alpha_rest):

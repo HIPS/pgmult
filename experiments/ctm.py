@@ -116,6 +116,28 @@ def sample_documents(counts, words, num=10):
 
 
 def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=True):
+    '''
+    Split the sparse matrix 'data' into two sparse matrices, 'train_data', and
+    'test_data', such that data = train_data + test_data.
+
+    Each row in data corresponds to a document and each column corresponds to a
+    word in the vocabulary, so that data is shape (num_docs, vocab_size) and
+    data[i,j] = count of word j in document i.
+
+    The test data held out from the training data is a subset of words in a
+    subset of documents. That is, the data matrix is first split into two types
+    of row: training rows and testing rows. Training rows are used in training
+    without any of their data held out. For testing rows, the aim is to train on
+    a subset of the words in the document and test how well the remaining words
+    can be predicted. Therefore this function performs two splits: first to
+    split into training rows and testing rows, and second to split the testing
+    rows into training counts and held-out counts.
+
+    The 'train_frac' and 'test_frac' inputs control what fraction of rows are
+    marked as training rows and what fraction of words within test rows are held
+    out, respectively.
+    '''
+
     def split_rows(mat, p):
         def sparse_to_lilrows(mat):
             out = mat.tolil()
@@ -141,8 +163,14 @@ def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=
         m2 = csr_matrix((data2, mat.indices, mat.indptr), mat.shape, dtype=np.uint32)
         return m1, m2
 
+    # split out training rows and testing rows
     test_data, train_data = split_rows(data, train_frac)
+
+    # within testing rows, hold out some fraction of the words
     test_train, test_data = split_multinomial(test_data, test_frac)
+
+    # for the counts within testing rows that aren't held out, add them back to
+    # the training data
     train_data += test_train
 
     assert train_data.sum() + test_data.sum() == data.sum()
@@ -224,8 +252,9 @@ Results = namedtuple(
 
 
 def fit_lnctm_em(train_data, test_data, T):
-    print('Running CTM EM...')
-    return Results(*ctm_wrapper.fit_ctm_em(train_data, test_data, T))
+    if ctm_wrapper.has_ctm_c:
+        print('Running CTM EM...')
+        return Results(*ctm_wrapper.fit_ctm_em(train_data, test_data, T))
 
 
 def sampler_fitter(name, cls, method, initializer):
@@ -234,10 +263,8 @@ def sampler_fitter(name, cls, method, initializer):
 
         def evaluate(model):
             ll, pll, perp = \
-                model.log_likelihood(), \
-                model.heldout_log_likelihood(test_data), \
+                model.log_likelihood(), model.log_likelihood(test_data), \
                 model.perplexity(test_data)
-            print('{} '.format(pll), end=' ')
             return ll, pll, perp
 
         def sample(model):
@@ -411,7 +438,8 @@ if __name__ == '__main__':
 
     ## fit and plot
     em_results = fit_lnctm_em(train_data, test_data, T)
-    plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
+    if em_results is not None:
+        plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
 
     lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
     plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
@@ -433,4 +461,3 @@ if __name__ == '__main__':
         pickle.dump(all_results, outfile, protocol=-1)
 
     plt.show()
-
