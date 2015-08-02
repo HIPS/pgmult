@@ -10,11 +10,12 @@ In particular, this package can be used for learning and inference in
 * or any new models you build using latent Gaussians and the stick-breaking
   logistic map to induce dependencies among multinomial or categorical parameters!
 
-### Example: fitting a correlated topic model
-You can find pretty thorough code for fitting correlated topic models in
-`examples/ctm.py`, which includes functions for downloading both the [20
-Newsgroup dataset]() and the [AP News dataset]() and comparing the performance
-of several inference methods.
+### Example: fitting a correlated topic model You can find pretty thorough code
+for fitting correlated topic models in `examples/ctm.py`, which includes
+functions for downloading both the [20 Newsgroup
+dataset](http://qwone.com/~jason/20Newsgroups/) and the [AP News
+dataset](http://www.cs.princeton.edu/~blei/lda-c/) and comparing the
+performance of several inference methods.
 Here we'll just sketch the basic interface.
 We'll use several utility functions that can be found in `examples/ctm.py`.
 
