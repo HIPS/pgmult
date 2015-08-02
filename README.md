@@ -19,7 +19,7 @@ performance of several inference methods. Here we'll just sketch the basic
 interface.
 We'll use several utility functions that can be found in `examples/ctm.py`.
 
-First, we load a dataset and split it training and test data:
+First, we load a dataset and split it into training and test data:
 ```python
 data, words = load_ap_data(V)
 train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
