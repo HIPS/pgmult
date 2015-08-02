@@ -21,8 +21,10 @@ We'll use several utility functions that can be found in `examples/ctm.py`.
 
 First, we load a dataset and split it into training and test data:
 ```python
+V = 4000           # a vocabulary of the 4000 most common words
 train_frac = 0.95  # use 95% of the data for training
 test_frac = 0.5    # on the test documents, hold out half of the words
+
 data, words = load_ap_data(V)
 train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
 ```
@@ -34,7 +36,6 @@ training data:
 from pgmult.lda import StickbreakingCorrelatedLDA
 
 T = 50             # 50 topics
-V = 4000           # a vocabulary of the 4000 most common words
 alpha_beta = 0.05  # smaller alpha_beta means sparser topics
 
 model = StickbreakingCorrelatedLDA(train_data, T, alpha_beta)
