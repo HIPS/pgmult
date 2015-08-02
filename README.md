@@ -26,7 +26,8 @@ train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=
 ```
 
 Next, we set some hyperparameters and instantiate a correlated topic model
-object, passing in the training data:
+object (a.k.a. correlated Latent Dirichlet allocation, or LDA), passing in the
+training data:
 ```python
 from pgmult.lda import StickbreakingCorrelatedLDA
 
@@ -115,7 +116,7 @@ class StickbreakingCorrelatedLDA(_LDABase):
 ```
 
 In the Gibbs sampler, instead of resampling `theta` according to a Dirichlet
-distribution, using the Polya-Gamma augmentation we just resample some
+distribution like in vanilla LDA, using the Polya-Gamma augmentation we just resample some
 auxiliary variables `omega` and the underlying Gaussian variables `psi`:
 ```python
     def resample_theta(self):
