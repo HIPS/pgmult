@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from GPy.kern import RBF
 from pgmult.gp import MultinomialGP
-from pgmult.internals.utils import psi_to_pi, N_vec, kappa_vec
+from pgmult.utils import psi_to_pi, N_vec, kappa_vec
 
 def geweke_test(K, N_iter=10000):
     D = 1           # Input dimensionality

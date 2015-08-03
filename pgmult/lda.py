@@ -17,7 +17,7 @@ from gslrandom import multinomial_par
 from pybasicbayes.distributions import Gaussian
 from pylds.lds_messages_interface import filter_and_sample_randomwalk
 
-from pgmult.internals.utils import \
+from pgmult.utils import \
     kappa_vec, N_vec, \
     compute_uniform_mean_psi, psi_to_pi, pi_to_psi, \
     ln_pi_to_psi, ln_psi_to_pi, \

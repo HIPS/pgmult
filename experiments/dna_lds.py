@@ -16,7 +16,7 @@ import brewer2mpl
 from pgmult.lds import MultinomialLDS
 from pgmult.particle_lds import LogisticNormalMultinomialLDS, ParticleSBMultinomialLDS
 from pgmult.hmm import MultinomialHMM
-from pgmult.internals.utils import pi_to_psi
+from pgmult.utils import pi_to_psi
 
 from pylds.models import DefaultLDS
 
@@ -332,7 +332,7 @@ def plot_qualitative_results(X, key, psi_lds, z_lds):
     prot_str = [id_to_char[v].upper() for v in X_inds]
 
 
-    from pgmult.internals.utils import psi_to_pi
+    from pgmult.utils import psi_to_pi
     pi_lds = psi_to_pi(psi_lds)
 
     # Plot the true and inferred states

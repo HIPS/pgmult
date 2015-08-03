@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pgmult.distributions import PGMultinomial
-from pgmult.internals.utils import compute_uniform_mean_psi, pi_to_psi, psi_to_pi
+from pgmult.utils import compute_uniform_mean_psi, pi_to_psi, psi_to_pi
 
 
 def test_psi_pi_conversion():

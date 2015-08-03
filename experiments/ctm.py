@@ -23,7 +23,7 @@ colors = colors[:3] + [colors[4]]
 from pybasicbayes.util.text import progprint_xrange
 
 from pgmult.lda import StandardLDA, StickbreakingCorrelatedLDA, LogisticNormalCorrelatedLDA
-from pgmult.internals.utils import mkdir, ln_psi_to_pi, pi_to_psi
+from pgmult.utils import mkdir, ln_psi_to_pi, pi_to_psi
 import pgmult.internals.ctm_wrapper as ctm_wrapper
 
 all_categories = [

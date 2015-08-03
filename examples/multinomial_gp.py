@@ -10,7 +10,7 @@ from GPy.kern import RBF
 # np.random.seed(1122122122)
 
 from pgmult.gp import MultinomialGP, LogisticNormalGP, EmpiricalStickBreakingGPModel
-from pgmult.internals.utils import psi_to_pi, compute_uniform_mean_psi
+from pgmult.utils import psi_to_pi, compute_uniform_mean_psi
 
 import matplotlib.pyplot as plt
 import brewer2mpl

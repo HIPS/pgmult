@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # Now sample from the prior for comparison
     print("Sampling from prior")
     from pybasicbayes.distributions import GaussianFixedMean
-    from pgmult.internals.utils import compute_uniform_mean_psi, psi_to_pi
+    from pgmult.utils import compute_uniform_mean_psi, psi_to_pi
     mu, sigma0 = compute_uniform_mean_psi(T)
     psis_prior = np.array(
         [GaussianFixedMean(mu=mu, lmbda_0=T * sigma0, nu_0=T).rvs(1)

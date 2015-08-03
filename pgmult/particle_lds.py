@@ -11,7 +11,7 @@ from hips.inference.mh import mh
 from hips.inference.particle_mcmc import InitialDistribution, Proposal, Likelihood
 from hips.inference.particle_mcmc import ParticleGibbsAncestorSampling
 
-from pgmult.internals.utils import ln_psi_to_pi, psi_to_pi
+from pgmult.utils import ln_psi_to_pi, psi_to_pi
 
 
 class LogisticNormalMultinomialLDSStates(LDSStates):

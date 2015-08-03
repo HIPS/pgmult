@@ -13,7 +13,7 @@ from pylds.lds_messages_interface import filter_and_sample_diagonal, \
     kalman_filter, kalman_filter_diagonal
 
 from pgmult.distributions import PGMultinomialRegression
-from pgmult.internals.utils import N_vec, kappa_vec
+from pgmult.utils import N_vec, kappa_vec
 
 
 class MultinomialLDSStates(LDSStates):

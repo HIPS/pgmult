@@ -29,7 +29,7 @@ colors = np.array(colors)[goodcolors]
 
 from GPy.kern import RBF, Matern52
 
-from pgmult.internals.utils import pi_to_psi, psi_to_pi, ln_pi_to_psi
+from pgmult.utils import pi_to_psi, psi_to_pi, ln_pi_to_psi
 import pgmult.gp
 reload(pgmult.gp)
 
@@ -72,7 +72,7 @@ def load_data(
     if downsample is not None:
         print("Downsampling data to ", downsample, " names per year/state")
         assert isinstance(downsample, int) and downsample > 0
-        from pgmult.internals.utils import downsample_data
+        from pgmult.utils import downsample_data
         downsample_train_data = downsample_data(train_data, downsample)
         downsample_test_data = downsample_data(test_data, downsample)
     else:

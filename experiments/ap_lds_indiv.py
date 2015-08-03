@@ -22,7 +22,7 @@ import brewer2mpl
 from pgmult.lds import MultinomialLDS
 from pgmult.particle_lds import LogisticNormalMultinomialLDS, ParticleSBMultinomialLDS
 from pgmult.hmm import MultinomialHMM
-from pgmult.internals.utils import pi_to_psi
+from pgmult.utils import pi_to_psi
 
 from pylds.models import DefaultLDS, NonstationaryLDS
 

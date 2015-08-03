@@ -222,7 +222,7 @@ if __name__ == "__main__":
     #                         res_dir,
     #                         highlight=highlight)
     #
-    # from pgmult.internals.utils import psi_to_pi
+    # from pgmult.utils import psi_to_pi
     # topic_probs = psi_to_pi(last_sample.theta_prior.mu)
     # topic_perm = np.argsort(topic_probs)
     # print_topics(last_sample.beta[:,topic_perm], words)

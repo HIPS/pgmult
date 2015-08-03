@@ -11,7 +11,7 @@ from __future__ import print_function
 import numpy as np
 from scipy.misc import logsumexp
 import pypolyagamma as ppg
-from pgmult.internals.utils import \
+from pgmult.utils import \
     initialize_polya_gamma_samplers, \
     polya_gamma_density, log_polya_gamma_density
 

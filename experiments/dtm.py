@@ -11,7 +11,7 @@ from collections import namedtuple
 
 from pybasicbayes.util.text import progprint, progprint_xrange
 
-from pgmult.internals.utils import mkdir
+from pgmult.utils import mkdir
 from ctm import get_sparse_repr, split_test_train
 from pgmult.lda import StickbreakingDynamicTopicsLDA
 
