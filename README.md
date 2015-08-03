@@ -91,7 +91,7 @@ algorithms for similar models look difficult, especially if you just want to
 embed a CTM in some other model.
 
 The research behind pgmult is about developing an alternative inference
-strategy based on Polya-Gamma augmentations that yields algorithms which are
+strategy based on Polya-gamma augmentations that yields algorithms which are
 both easy to derive and easy to implement.
 In fact, on top of a vanilla LDA implementation, which takes just a few dozen
 lines in `pgmult.lda._LDABase`, with pgmult the main inference step in a
@@ -121,7 +121,7 @@ class StickbreakingCorrelatedLDA(_LDABase):
 ```
 
 In the Gibbs sampler, instead of resampling `theta` according to a Dirichlet
-distribution like in vanilla LDA, using the Polya-Gamma augmentation we just resample some
+distribution like in vanilla LDA, using the Polya-gamma augmentation we just resample some
 auxiliary variables `omega` and the underlying Gaussian variables `psi`:
 ```python
     def resample_theta(self):
