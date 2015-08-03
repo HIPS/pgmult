@@ -65,7 +65,7 @@ TODO show plot here!
 
 This Gibbs sampling algorithm is in some ways an improvement over the
 variational Expectation-Maximization (variational EM) algorithm used in the
-[original ctm code](http://www.cs.princeton.edu/~blei/ctm-c/) because it's
+[original CTM code](http://www.cs.princeton.edu/~blei/ctm-c/) because it's
 an unbiased MCMC algorithm, while the variational EM algorithm computes biased
 expectations in its E step.
 That means, for example, that you can compute unbiased estimates of arbitrary
