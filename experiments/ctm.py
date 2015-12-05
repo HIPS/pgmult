@@ -422,7 +422,7 @@ if __name__ == '__main__':
     # data, words = load_newsgroup_data(V, cats)
 
     ## AP
-    T, V = 100, 1000
+    T, V = 50, 4000
     alpha_beta, alpha_theta = 0.05, 1.
     train_frac, test_frac = 0.95, 0.5
     data, words = load_ap_data(V)
@@ -437,15 +437,15 @@ if __name__ == '__main__':
     train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
 
     ## fit and plot
-    em_results = fit_lnctm_em(train_data, test_data, T)
-    if em_results is not None:
-        plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
+    # em_results = fit_lnctm_em(train_data, test_data, T)
+    # if em_results is not None:
+    #     plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
 
-    lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
-    plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
+    # lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
+    # plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
 
-    ln_results = fit_lnctm_gibbs(train_data, test_data, T, 200, True, alpha_beta)
-    plot_predictive_lls(ln_results, True, color=colors[1], label='LN CTM Gibbs')
+    # ln_results = fit_lnctm_gibbs(train_data, test_data, T, 200, True, alpha_beta)
+    # plot_predictive_lls(ln_results, True, color=colors[1], label='LN CTM Gibbs')
 
     sb_results = fit_sbctm_gibbs(train_data, test_data, T, 1500, True, alpha_beta)
     plot_predictive_lls(sb_results, True, color=colors[2], label='SB CTM Gibbs')
