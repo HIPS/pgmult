@@ -5,8 +5,9 @@ import os
 from os.path import join, basename, isdir
 from glob import glob
 import subprocess
+from textwrap import wrap
 
-from .utils import mkdir, ln_psi_to_pi
+from pgmult.utils import mkdir, ln_psi_to_pi
 from pgmult.lda import log_likelihood, csr_nonzero
 
 
@@ -22,7 +23,7 @@ ctm_binary_path = join(ctmdir, 'ctm')
 settingsfile = join(ctmdir, 'settings.txt')
 logfile = 'ctm-log.txt'
 
-has_ctm_c = os.path.exists(ctmdir)
+has_ctm_c = os.path.exists(ctm_binary_path)
 
 settings = [
     "em max iter 1000",
@@ -36,10 +37,10 @@ settings = [
 ]
 
 if not has_ctm_c:
-    print 'Please download ctm-c from {url} to {ctmdir} and build it'.format(
-        url=ctm_url, ctmdir=ctmdir)
-    print '(i.e. the ctm binary should be at {ctm_binary_path})'.format(
-        ctm_binary_path=ctm_binary_path)
+    msg = 'Please download ctm-c from {url} to {ctmdir} and build it. ' \
+          '(i.e. the ctm binary should be at {ctm_binary_path})'.format(
+        url=ctm_url, ctmdir=ctmdir, ctm_binary_path=ctm_binary_path)
+    raise Exception('\n' + '\n'.join(wrap(msg, 82)))
 
 mkdir(os.path.dirname(settingsfile))
 with open(settingsfile, 'w') as outfile:

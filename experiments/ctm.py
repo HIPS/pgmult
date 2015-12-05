@@ -437,7 +437,7 @@ if __name__ == '__main__':
     train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
 
     ## fit and plot
-    # em_results = fit_lnctm_em(train_data, test_data, T)
+    em_results = fit_lnctm_em(train_data, test_data, T)
     # if em_results is not None:
     #     plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
 

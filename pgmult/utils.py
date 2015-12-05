@@ -4,11 +4,12 @@ import numpy as np
 import scipy
 from scipy.misc import logsumexp
 from scipy.special import gammaln, beta
-from .dirichlet import log_dirichlet_density
 from scipy.integrate import simps
 from numpy import newaxis as na
 
 import pypolyagamma as ppg
+
+from pgmult.internals.dirichlet import log_dirichlet_density
 
 
 def initialize_polya_gamma_samplers():

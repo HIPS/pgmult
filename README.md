@@ -152,3 +152,11 @@ methods it calls in vanilla LDA:
         self.resample_theta()
         self.resample_beta()
 ```
+
+# Installation
+
+```bash
+git clone https://github.com/hips/pgmult.git
+cd pgmult
+pip install -e .
+```
