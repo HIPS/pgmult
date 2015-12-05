@@ -289,13 +289,16 @@ def sampler_fitter(name, cls, method, initializer):
 
 
 def make_ctm_initializer(get_psi):
+    ctm_initial_beta_path = os.path.join(ctm_wrapper.resultsdir, '000-log-beta.dat')
+    ctm_initial_lambda_path = os.path.join(ctm_wrapper.resultsdir, '000-lambda.dat')
+
     def initializer(model):
         T, V = model.T, model.V
 
-        model.beta = np.exp(np.loadtxt('ctm-out/000-log-beta.dat')
+        model.beta = np.exp(np.loadtxt(ctm_initial_beta_path)
                             .reshape((-1,V))).T
 
-        lmbda = np.loadtxt('ctm-out/000-lambda.dat').reshape((-1,T))
+        lmbda = np.loadtxt(ctm_initial_lambda_path).reshape((-1,T))
         nonempty_docs = np.asarray(model.data.sum(1) > 0).ravel()
         model.psi[nonempty_docs] = get_psi(lmbda)
 
@@ -438,14 +441,14 @@ if __name__ == '__main__':
 
     ## fit and plot
     em_results = fit_lnctm_em(train_data, test_data, T)
-    # if em_results is not None:
-    #     plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
+    if em_results is not None:
+        plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
 
-    # lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
-    # plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
+    lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
+    plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
 
-    # ln_results = fit_lnctm_gibbs(train_data, test_data, T, 200, True, alpha_beta)
-    # plot_predictive_lls(ln_results, True, color=colors[1], label='LN CTM Gibbs')
+    ln_results = fit_lnctm_gibbs(train_data, test_data, T, 200, True, alpha_beta)
+    plot_predictive_lls(ln_results, True, color=colors[1], label='LN CTM Gibbs')
 
     sb_results = fit_sbctm_gibbs(train_data, test_data, T, 1500, True, alpha_beta)
     plot_predictive_lls(sb_results, True, color=colors[2], label='SB CTM Gibbs')
