@@ -425,7 +425,7 @@ if __name__ == '__main__':
     # data, words = load_newsgroup_data(V, cats)
 
     ## AP
-    T, V = 50, 4000
+    T, V = 100, 1000
     alpha_beta, alpha_theta = 0.05, 1.
     train_frac, test_frac = 0.95, 0.5
     data, words = load_ap_data(V)

@@ -61,7 +61,7 @@ import matplotlib.pyplot as plt
 plt.plot(training_likes)
 ```
 
-TODO show plot here!
+![README CTM training likelihoods](data/readme_sbctm_taining_likes.png)
 
 This Gibbs sampling algorithm is in some ways an improvement over the
 variational Expectation-Maximization (variational EM) algorithm used in the
