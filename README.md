@@ -142,16 +142,27 @@ auxiliary variables `omega` and the underlying Gaussian variables `psi`:
                 Lmbda + np.diag(self.omega[d]), h + kappa_vec(c))
 ```
 
-That's it! The `resample` method from `_LDABase` just calls this
+The `resample` method from `_LDABase` just calls this
 `resample_theta` method along with the same `resample_beta` and `resample_z`
 methods it calls in vanilla LDA:
-
 ```python
     def resample(self):
         self.resample_z()
         self.resample_theta()
         self.resample_beta()
 ```
+
+We need to add one more step: to learn the correlation structure, we want to
+resample the parameters over `psi`, so in `StickbreakingCorrelatedLDA` we
+make the `resample` method do one more update to `self.theta_prior.mu` and
+`self.theta_prior.sigma`.
+```python
+    def resample(self):
+        super(StickbreakingCorrelatedLDA, self).resample()
+        self.theta_prior.resample(self.psi)
+```
+
+That's it!
 
 # Installation
 
