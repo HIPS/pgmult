@@ -124,6 +124,8 @@ In the Gibbs sampler, instead of resampling `theta` according to a Dirichlet
 distribution like in vanilla LDA, using the Pólya-gamma augmentation we just resample some
 auxiliary variables `omega` and the underlying Gaussian variables `psi`:
 ```python
+    # in class StickbreakingCorrelatedLDA
+
     def resample_theta(self):
         self.resample_omega()
         self.resample_psi()
@@ -146,6 +148,8 @@ The `resample` method from `_LDABase` just calls this
 `resample_theta` method along with the same `resample_beta` and `resample_z`
 methods it calls in vanilla LDA:
 ```python
+    # in class _LDAbase
+
     def resample(self):
         self.resample_z()
         self.resample_theta()
@@ -157,6 +161,8 @@ resample the parameters over `psi`, so in `StickbreakingCorrelatedLDA` we
 make the `resample` method do one more update to `self.theta_prior.mu` and
 `self.theta_prior.sigma`.
 ```python
+    # in class StickbreakingCorrelatedLDA
+
     def resample(self):
         super(StickbreakingCorrelatedLDA, self).resample()
         self.theta_prior.resample(self.psi)
