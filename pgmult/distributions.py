@@ -8,12 +8,9 @@ from scipy.misc import logsumexp
 from pybasicbayes.abstractions import Distribution, GibbsSampling, Model
 from pybasicbayes.distributions import Multinomial
 
-from .internals.utils import kappa_vec, N_vec, pi_to_psi, psi_to_pi, \
+from pgmult.utils import kappa_vec, N_vec, pi_to_psi, psi_to_pi, \
     ln_psi_to_pi, ln_pi_to_psi, initialize_polya_gamma_samplers, \
     compute_psi_cmoments
-from .utils.profiling import line_profiled
-
-PROFILING=False
 
 import pypolyagamma as ppg
 
@@ -260,7 +257,6 @@ class PGMultinomialRegression(Distribution):
         self.resample_C(augmented_data_list)
         self.resample_omega(augmented_data_list)
 
-    @line_profiled
     def resample_C(self, augmented_data_list):
         """
         Resample the observation vectors. Since the emission noise is diagonal,
@@ -309,7 +305,6 @@ class PGMultinomialRegression(Distribution):
 
             self.C[k,:] = np.random.multivariate_normal(post_mu, post_cov)
 
-    @line_profiled
     def resample_omega(self, augmented_data_list):
         """
         Resample omega from its conditional Polya-gamma distribution

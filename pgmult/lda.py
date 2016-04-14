@@ -13,7 +13,7 @@ from scipy.special import gammaln
 import scipy.sparse
 
 from pypolyagamma import pgdrawvpar
-from gslrandom import multinomial_par
+from gslrandom import multinomial
 from pybasicbayes.distributions import Gaussian
 from pylds.lds_messages_interface import filter_and_sample_randomwalk
 
@@ -159,7 +159,7 @@ class _LDABase(object):
 
     def resample_z(self):
         topicprobs = self.get_topicprobs(self.data)
-        multinomial_par(self.pyrngs, self.data.data, topicprobs, self.z)
+        multinomial(self.pyrngs, self.data.data, topicprobs, self.z)
         self._update_counts()
 
     def _update_counts(self):
@@ -169,6 +169,22 @@ class _LDABase(object):
         for i, j, zvec in zip(rows, cols, self.z):
             self.doc_topic_counts[i] += zvec
             self.word_topic_counts[j] += zvec
+
+    def generate(self, N, keep=True):
+        word_probs = np.dot(self.theta, self.beta.T)
+        assert word_probs.shape == (self.D, self.V)
+        data = np.zeros((self.D, self.V))
+        for d in range(self.D):
+            data[d] = np.random.multinomial(N, word_probs[d])
+        data = scipy.sparse.csr_matrix(data)
+
+        if keep:
+            self.data = data
+            self.z = np.zeros((data.data.shape[0], self.T), dtype='uint32')
+            self.resample_z()
+            # precompute
+            self._training_gammalns = \
+                gammaln(data.sum(1)+1).sum() - gammaln(data.data+1).sum()
 
 
 class StandardLDA(_LDABase):

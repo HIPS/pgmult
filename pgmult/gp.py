@@ -11,9 +11,7 @@ from scipy.special import gammaln
 
 from pybasicbayes.abstractions import Model, ModelGibbsSampling
 
-PROFILING = False
-from pgmult.utils.profiling import line_profiled
-from .internals.utils import \
+from pgmult.utils import \
     kappa_vec, N_vec, psi_to_pi, pi_to_psi, ln_psi_to_pi, ln_pi_to_psi, \
     compute_uniform_mean_psi, initialize_polya_gamma_samplers
 
@@ -378,7 +376,6 @@ class _MultinomialGPGibbsSampling(_MultinomialGPBase, ModelGibbsSampling):
         self.resample_omega()
         self.resample_kernel_parameters()
 
-    @line_profiled
     def resample_psi(self, verbose=False):
         for data in self.data_list:
             # import pdb; pdb.set_trace()
@@ -730,7 +727,6 @@ class LogisticNormalGP(ModelGibbsSampling):
     def resample_model(self, verbose=False):
         self.resample_psi(verbose=verbose)
 
-    @line_profiled
     def resample_psi(self, verbose=False):
         for data in self.data_list:
             # Compute the cholesky of the covariance matrix

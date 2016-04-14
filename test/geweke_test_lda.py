@@ -7,38 +7,36 @@ import matplotlib.pyplot as plt
 from pybasicbayes.util.text import progprint_xrange
 
 from pgmult.lda import StickbreakingCorrelatedLDA
-
-def resample_data(model, D, N):
-    model.documents = []
-    data = np.zeros((D, model.V),dtype=int)
-    for d in xrange(D):
-        doc = model.generate(N=N, keep=True)
-        data[d,:] = doc.w
+from scipy.sparse import csr_matrix
 
 # def test_geweke_lda():
 if __name__ == "__main__":
-    N_iter = 50000
+    N_iter = 5000
     T = 3           # Number of topics
     D = 10         # Number of documents
-    V = 10          # Number of words
+    V = 20          # Number of words
     N = 20         # Number of words per document
     alpha_beta = 1.0
 
+    # Generate synthetic data
+    data = np.random.poisson(2, (D,V))
+    data = csr_matrix(data)
+
     # Sample a GP
-    model = StickbreakingCorrelatedLDA(T, V, alpha_beta=alpha_beta)
+    model = StickbreakingCorrelatedLDA(data, T, alpha_beta=alpha_beta)
 
     # Run a Geweke test
     thetas = []
     betas = []
     for itr in progprint_xrange(N_iter):
         # Resample the data
-        resample_data(model, D, N)
+        model.generate(N, keep=True)
 
         # Resample the parameters
-        model.resample_model()
+        model.resample()
 
         # Update our samples
-        thetas.append(model.thetas.copy())
+        thetas.append(model.theta.copy())
         betas.append(model.beta.copy())
 
     # Check that the PG-Multinomial samples are distributed like the prior

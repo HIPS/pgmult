@@ -1,11 +1,15 @@
 from __future__ import absolute_import
-import os
+import os, re
 import numpy as np
 import scipy
 from scipy.misc import logsumexp
 from scipy.special import gammaln, beta
 from scipy.integrate import simps
 from numpy import newaxis as na
+
+import scipy.sparse
+from scipy.sparse import csr_matrix, csc_matrix, lil_matrix
+
 
 import pypolyagamma as ppg
 
@@ -520,3 +524,58 @@ def downsample_data(X, n):
         assert Xsub[d].sum() == n
 
     return Xsub.astype(np.float)
+
+
+def get_sparse_repr(docs, V, sort_data):
+    from sklearn.feature_extraction.text import CountVectorizer
+
+    vectorizer = CountVectorizer(stop_words="english", max_features=V)
+    default_preproc = vectorizer.build_preprocessor()
+
+    def preproc(s):
+        return re.sub(r' \d+ ', 'anumber ', default_preproc(s))
+
+    vectorizer.preprocessor = preproc
+
+    counts = vectorizer.fit_transform(docs).astype(np.uint32)
+    words = vectorizer.get_feature_names()
+    if sort_data:
+        counts, words = sort_vocab(counts, words)
+        assert is_column_sorted(counts)
+
+    print('loaded {} documents with a size {} vocabulary'.format(*counts.shape))
+    print('with {} words per document on average'.format(np.mean(counts.sum(1))))
+    print()
+
+    return counts, words
+
+
+def sort_vocab(counts, words):
+    tots = counts.T.dot(np.ones(counts.shape[0]))
+    words = [words[idx] for idx in np.argsort(-tots)]
+    counts = sort_columns_by_counts(counts)
+    return counts, words
+
+
+def sparse_from_blocks(blocks):
+    blocklen = lambda data_indices: data_indices[0].shape[0]
+    data, indices = map(np.concatenate, zip(*blocks))
+    indptr = np.concatenate(((0,), np.cumsum(map(blocklen, blocks))))
+    return data, indices, indptr
+
+
+def sparse_to_blocks(mat):
+    data, indices, indptr = mat.data, mat.indices, mat.indptr
+    slices = map(slice, indptr[:-1], indptr[1:])
+    return [(data[sl], indices[sl]) for sl in slices]
+
+
+def sort_columns_by_counts(mat):
+    count = lambda data_indices1: data_indices1[0].sum()
+    sorted_cols = sorted(sparse_to_blocks(mat.tocsc()), key=count, reverse=True)
+    return csc_matrix(sparse_from_blocks(sorted_cols), mat.shape).tocsr()
+
+
+def is_column_sorted(mat):
+    a = np.asarray(mat.sum(0)).ravel()
+    return np.all(a == a[np.argsort(-a)])
