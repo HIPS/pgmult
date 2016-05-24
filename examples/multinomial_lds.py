@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pgmult.lds import MultinomialLDS
-from pybasicbayes.distributions import Gaussian
-from autoregressive.distributions import AutoRegression
+from pybasicbayes.distributions import Gaussian, AutoRegression
 
 np.seterr(invalid="warn")
 np.random.seed(0)
