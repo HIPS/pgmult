@@ -20,9 +20,8 @@ colors = brewer2mpl.get_map("Set1", "Qualitative",  9).mpl_colors
 from pgmult.lds import MultinomialLDS
 from pgmult.hmm import MultinomialHMM
 
-from pybasicbayes.distributions import Gaussian
+from pybasicbayes.distributions import Gaussian, AutoRegression
 from pybasicbayes.util.text import progprint_xrange
-from autoregressive.distributions import AutoRegression
 
 from pylds.models import DefaultLDS
 
