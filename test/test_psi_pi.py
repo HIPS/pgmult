@@ -19,6 +19,18 @@ def test_psi_pi_conversion():
 
     assert np.allclose(pi, pi2), "Mapping is not invertible."
 
+def test_psi_pi_conversion_3d():
+    K = 10
+    N = 10
+    D = 10
+    
+    pi = np.random.rand(N,D,K)
+    pi /= np.sum(pi, axis=2, keepdims=True)
+    psi = np.array([pi_to_psi(p) for p in pi])
+    pi2 = psi_to_pi(psi, axis=2)
+
+    assert np.allclose(pi, pi2), "Mapping is not invertible."
+    
 def test_pgm_rvs():
     K = 10
     mu, sig = compute_uniform_mean_psi(K, sigma=2)
@@ -36,7 +48,7 @@ def test_pgm_rvs():
     pgm = PGMultinomial(K, mu=mu, Sigma=Sigma)
     samples = 10000
     pis = []
-    for smpl in xrange(samples):
+    for smpl in range(samples):
         pgm.resample()
         pis.append(pgm.pi)
     pis = np.array(pis)
@@ -68,7 +80,7 @@ def test_correlated_pgm_rvs(Sigma):
     samples = 10000
     psis = np.random.multivariate_normal(mu, Sigma, size=samples)
     pis = []
-    for smpl in xrange(samples):
+    for smpl in range(samples):
         pis.append(psi_to_pi(psis[smpl]))
     pis = np.array(pis)
 
@@ -126,8 +138,9 @@ def test_block_correlated_pgm_rvs():
     Sigma = np.kron(Sblocks,np.eye(3))
     test_correlated_pgm_rvs(Sigma)
 
-# test_psi_pi_conversion()
+test_psi_pi_conversion()
+test_psi_pi_conversion_3d()
 # test_pgm_rvs()
 # test_chain_correlated_pgm_rvs()
-test_wishart_correlated_pgm_rvs(K=10)
+# test_wishart_correlated_pgm_rvs(K=10)
 # test_block_correlated_pgm_rvs()

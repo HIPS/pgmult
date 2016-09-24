@@ -130,7 +130,7 @@ def psi_to_pi(psi, axis=None):
     else:
         K = psi.shape[axis] + 1
         pi = np.zeros([psi.shape[dim] if dim != axis else K for dim in range(psi.ndim)])
-        stick = np.squeeze(np.ones([psi.shape[dim] if dim != axis else 1 for dim in range(psi.ndim)]))
+        stick = np.ones(psi.shape[:axis] + psi.shape[axis+1:])
         for k in range(K-1):
             inds = [slice(None) if dim != axis else k for dim in range(psi.ndim)]
             pi[inds] = logistic(psi[inds]) * stick
