@@ -6,7 +6,7 @@ Test the polya gamma identity:
 
 using Monte Carlo.
 """
-from __future__ import print_function
+
 
 import numpy as np
 from scipy.misc import logsumexp

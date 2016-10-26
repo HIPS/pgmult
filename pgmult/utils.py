@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 import os, re
 import numpy as np
 import scipy
@@ -189,7 +189,7 @@ def det_jacobian_pi_to_psi(pi):
 
     # Jacobian is K-1 x K-1
     diag = np.zeros(K-1)
-    for k in xrange(K-1):
+    for k in range(K-1):
         diag[k] = (1.0 - pi[:k].sum()) / (pi[k] * (1-pi[:(k+1)].sum()))
 
     det_jacobian = diag.prod()
@@ -206,12 +206,12 @@ def det_jacobian_psi_to_pi(psi):
 
 
 def dirichlet_to_psi_density(pi_mesh, alpha):
-    psi_mesh = np.array(map(pi_to_psi, pi_mesh))
+    psi_mesh = np.array(list(map(pi_to_psi, pi_mesh)))
     valid_psi = np.all(np.isfinite(psi_mesh), axis=1)
     psi_mesh = psi_mesh[valid_psi,:]
 
     # Compute the det of the Jacobian of the inverse mapping
-    det_jacobian = 1.0 / np.array(map(det_jacobian_pi_to_psi, pi_mesh))
+    det_jacobian = 1.0 / np.array(list(map(det_jacobian_pi_to_psi, pi_mesh)))
     det_jacobian = det_jacobian[valid_psi]
 
     # Compute the Dirichlet density
@@ -224,7 +224,7 @@ def dirichlet_to_psi_density(pi_mesh, alpha):
     return psi_mesh, psi_pdf
 
 def dirichlet_to_psi_density_closed_form(pi_mesh, alpha):
-    psi_mesh = np.array(map(pi_to_psi, pi_mesh))
+    psi_mesh = np.array(list(map(pi_to_psi, pi_mesh)))
     valid_psi = np.all(np.isfinite(psi_mesh), axis=1)
     psi_mesh = psi_mesh[valid_psi,:]
 
@@ -241,12 +241,12 @@ def dirichlet_to_psi_density_closed_form(pi_mesh, alpha):
     return psi_mesh, psi_pdf
 
 def gaussian_to_pi_density(psi_mesh, mu, Sigma):
-    pi_mesh = np.array(map(psi_to_pi, psi_mesh))
+    pi_mesh = np.array(list(map(psi_to_pi, psi_mesh)))
     valid_pi = np.all(np.isfinite(pi_mesh), axis=1)
     pi_mesh = pi_mesh[valid_pi,:]
 
     # Compute the det of the Jacobian of the inverse mapping
-    det_jacobian = np.array(map(det_jacobian_pi_to_psi, pi_mesh))
+    det_jacobian = np.array(list(map(det_jacobian_pi_to_psi, pi_mesh)))
     det_jacobian = det_jacobian[valid_pi]
 
     # Compute the multivariate Gaussian density
@@ -400,7 +400,7 @@ def dirichlet_to_psi_meanvar(alphas,psigrid=np.linspace(-10,10,1000)):
         s = simps(psigrid**2*density(psigrid),psigrid)
         return mean, s - mean**2
 
-    return map(np.array, zip(*[meanvar(k) for k in range(K-1)]))
+    return list(map(np.array, list(zip(*[meanvar(k) for k in range(K-1)]))))
 
 
 def cumsum(v,strict=False):
@@ -489,14 +489,14 @@ def downsample_data_slow(X, n):
 
     Xsub = X.copy()
 
-    for i in xrange(Xsub.shape[0]):
+    for i in range(Xsub.shape[0]):
         Mi = int(Xsub[i].sum())
         assert Mi >= n
         # if Mi > 1e8: print "Warning: M is really large!"
         p = Xsub[i] / float(Mi)
 
         # Random remove one of the entries to remove
-        for m in xrange(Mi-n):
+        for m in range(Mi-n):
             k = sample_discrete(p)
             assert Xsub[i,k] > 0
             Xsub[i,k] -= 1
@@ -517,7 +517,7 @@ def downsample_data(X, n):
 
     Xsub = X.copy().astype(np.int)
 
-    for d in xrange(D):
+    for d in range(D):
         xi = ibincount(Xsub[d])
         Xsub[d] = np.bincount(np.random.choice(xi, size=n, replace=False), minlength=K)
 
@@ -543,8 +543,8 @@ def get_sparse_repr(docs, V, sort_data):
         counts, words = sort_vocab(counts, words)
         assert is_column_sorted(counts)
 
-    print('loaded {} documents with a size {} vocabulary'.format(*counts.shape))
-    print('with {} words per document on average'.format(np.mean(counts.sum(1))))
+    print(('loaded {} documents with a size {} vocabulary'.format(*counts.shape)))
+    print(('with {} words per document on average'.format(np.mean(counts.sum(1)))))
     print()
 
     return counts, words
@@ -559,14 +559,14 @@ def sort_vocab(counts, words):
 
 def sparse_from_blocks(blocks):
     blocklen = lambda data_indices: data_indices[0].shape[0]
-    data, indices = map(np.concatenate, zip(*blocks))
-    indptr = np.concatenate(((0,), np.cumsum(map(blocklen, blocks))))
+    data, indices = list(map(np.concatenate, list(zip(*blocks))))
+    indptr = np.concatenate(((0,), np.cumsum(list(map(blocklen, blocks)))))
     return data, indices, indptr
 
 
 def sparse_to_blocks(mat):
     data, indices, indptr = mat.data, mat.indices, mat.indptr
-    slices = map(slice, indptr[:-1], indptr[1:])
+    slices = list(map(slice, indptr[:-1], indptr[1:]))
     return [(data[sl], indices[sl]) for sl in slices]
 
 

@@ -1,8 +1,8 @@
-from __future__ import print_function
+
 import os
 import gzip
 import time
-import cPickle
+import pickle
 import operator
 import collections
 import itertools
@@ -44,9 +44,9 @@ def discretize_seq(subseq, stride=1, key=None):
     X = np.zeros((T,100))
 
     if key is None:
-        key = collections.defaultdict(itertools.count().next)
+        key = collections.defaultdict(itertools.count().__next__)
 
-    for t in xrange(T):
+    for t in range(T):
         off = t * stride
         snip = subseq[off:off+stride]
         X[t, key[snip]] = 1
@@ -70,7 +70,7 @@ def load_data():
 
     if os.path.exists(proc_data_file):
         with gzip.open(proc_data_file) as f:
-            Xs,newkey = cPickle.load(f)
+            Xs,newkey = pickle.load(f)
     else:
         handle = open(data_file, "rU")
         for record in SeqIO.parse(handle, "fasta"):
@@ -107,8 +107,8 @@ def load_data():
             Xs[i] = X[:,perm]
 
         # Update the key
-        invkey = {v:k for k,v in key.items()}
-        newkey = {k:v for k,v in key.items()}
+        invkey = {v:k for k,v in list(key.items())}
+        newkey = {k:v for k,v in list(key.items())}
         for i,j in enumerate(perm):
             newkey[invkey[j]] = i
 
@@ -116,7 +116,7 @@ def load_data():
 
         # Save the analyzed subsequences
         with gzip.open(proc_data_file, "w") as f:
-            cPickle.dump((Xs, dict(newkey)), f, protocol=-1)
+            pickle.dump((Xs, dict(newkey)), f, protocol=-1)
 
     return Xs, newkey
 
@@ -151,7 +151,7 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
             model.predictive_log_likelihood(Xtest, M=1000)
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))
+        list(map(np.array, list(zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -177,7 +177,7 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
             (model.log_likelihood(np.vstack((Xs[0], Xtest))) - model.log_likelihood(Xs[0]))
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))
+        list(map(np.array, list(zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -210,7 +210,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
         # largest dimension for each predicted Gaussian.
         # Preds is T x K x Npred, inds is TxNpred
         inds = np.argmax(preds, axis=1)
-        pi = np.array([np.bincount(inds[t], minlength=K) for t in xrange(Tpred)]) / float(Npred)
+        pi = np.array([np.bincount(inds[t], minlength=K) for t in range(Tpred)]) / float(Npred)
         assert np.allclose(pi.sum(axis=1), 1.0)
 
         pi = np.clip(pi, 1e-8, 1.0)
@@ -218,7 +218,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
 
         # Compute the log likelihood under pi
         pred_ll = np.sum([Multinomial(weights=pi[t], K=K).log_likelihood(Xtest[t][None,:])
-                          for t in xrange(Tpred)])
+                          for t in range(Tpred)])
 
         return toc, None, np.nan, \
             np.nan, \
@@ -229,7 +229,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
     while n_retries < max_attempts:
         try:
             times, samples, lls, test_lls, pred_lls = \
-                map(np.array, zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))
+                list(map(np.array, list(zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))))
             timestamps = np.cumsum(times)
             return Results(lls, test_lls, pred_lls, samples, timestamps)
         except Exception as e:
@@ -274,7 +274,7 @@ def fit_ln_lds_model(Xs, Xtest, D, N_samples=100):
             pred_ll
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))
+        list(map(np.array, list(zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -314,7 +314,7 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
             pred_ll
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))
+        list(map(np.array, list(zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -326,8 +326,8 @@ def plot_qualitative_results(X, key, psi_lds, z_lds):
 
     # Get the corresponding protein labels
     import operator
-    id_to_char = dict([(v,k) for k,v in key.items()])
-    sorted_chars = [idc[1].upper() for idc in sorted(id_to_char.items(), key=operator.itemgetter(0))]
+    id_to_char = dict([(v,k) for k,v in list(key.items())])
+    sorted_chars = [idc[1].upper() for idc in sorted(list(id_to_char.items()), key=operator.itemgetter(0))]
     X_inds = np.where(X)[1]
     prot_str = [id_to_char[v].upper() for v in X_inds]
 
@@ -359,7 +359,7 @@ def plot_qualitative_results(X, key, psi_lds, z_lds):
                extent=(0,stop-start,K+1,1))
     # Circle true symbol
     from matplotlib.patches import Rectangle
-    for n in xrange(start, stop):
+    for n in range(start, stop):
         ax3.add_patch(Rectangle((n-start, X_inds[n]+1), 1, 1, facecolor="none", edgecolor="k"))
 
     # Print protein labels on y axis
@@ -447,7 +447,7 @@ def plot_pred_log_likelihood(results, names, results_dir,
             win = 10
             pad_pred_ll = np.concatenate((pred_ll[0] * np.ones(win), pred_ll))
             smooth_pred_ll = np.array([logsumexp(pad_pred_ll[j-win:j+1])-np.log(win)
-                                       for j in xrange(win, pad_pred_ll.size)])
+                                       for j in range(win, pad_pred_ll.size)])
 
             plt.plot(np.clip(result.timestamps[burnin:], 1e-3,np.inf),
                      smooth_pred_ll[burnin:],
@@ -484,8 +484,8 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest,
     M = len(all_results[0])                 # Number of models tested
     T = len(all_results[0][0].pred_lls)     # Number of MCMC iters
     pred_lls = np.zeros((N,M,T))
-    for n in xrange(N):
-        for m in xrange(M):
+    for n in range(N):
+        for m in range(M):
             if all_results[n][m].pred_lls.ndim == 2:
                 pred_lls[n,m] = all_results[n][m].pred_lls[:,0]
             else:
@@ -497,8 +497,8 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest,
 
     # Use bootstrap to compute error bars
     pred_ll_std = np.zeros_like(pred_ll_mean)
-    for n in xrange(N):
-        for m in xrange(M):
+    for n in range(N):
+        for m in range(M):
             samples = np.random.choice(pred_lls[n,m,burnin:], size=(100, (T-burnin)), replace=True)
             pll_samples = logsumexp(samples, axis=1) - np.log(T-burnin)
             pred_ll_std[n,m] = pll_samples.std()
@@ -524,7 +524,7 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest,
     ax.get_yaxis().tick_left()
 
     width = np.min(np.diff(Ds)) / (M+1.0) if len(Ds)>1 else 1.
-    for m in xrange(M):
+    for m in range(M):
         ax.bar(Ds+m*width,
                (pred_ll_mean[:,m] - baseline) / normalizer,
                yerr=pred_ll_std[:,m] / normalizer,
@@ -570,7 +570,7 @@ if __name__ == "__main__":
     results_dir = os.path.join("results", "dna", "run%03d" % run)
 
     # Make sure the results directory exists
-    from pgmult.internals.utils import mkdir
+    from pgmult.utils import mkdir
     if not os.path.exists(results_dir):
         print("Making results directory: ", results_dir)
         mkdir(results_dir)
@@ -604,14 +604,14 @@ if __name__ == "__main__":
             if os.path.exists(results_file):
                 print("Loading from: ", results_file)
                 with gzip.open(results_file, "r") as f:
-                    D_model_results = cPickle.load(f)
+                    D_model_results = pickle.load(f)
             else:
                 print("Fitting ", model, " for D=",D)
                 D_model_results = method(Xtrain, Xtest, D, N_samples)
 
                 with gzip.open(results_file, "w") as f:
                     print("Saving to: ", results_file)
-                    cPickle.dump(D_model_results, f, protocol=-1)
+                    pickle.dump(D_model_results, f, protocol=-1)
 
             D_results.append(D_model_results)
         all_results.append(D_results)

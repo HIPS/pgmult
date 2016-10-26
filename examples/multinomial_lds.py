@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -57,7 +57,7 @@ lls = []
 pis = []
 psis = []
 zs = []
-for smpl in xrange(N_samples):
+for smpl in range(N_samples):
     print("Iteration ", smpl)
     testmodel.resample_model()
 

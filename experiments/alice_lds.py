@@ -3,11 +3,11 @@ Linear dynamical system model for the AP text dataset.
 Each document is modeled as a draw from an LDS with
 categorical observations.
 """
-from __future__ import print_function
+
 import os
 import gzip
 import time
-import cPickle
+import pickle
 import collections
 import numpy as np
 from scipy.misc import logsumexp
@@ -53,7 +53,7 @@ def load(filename=os.path.join("data", "alice", "alice.txt")):
     docs = [make_onehot_seq(doc, vectorizer) for doc in docs]
 
     # words = vectorizer.get_feature_names()
-    words = vectorizer.vocabulary_.keys()
+    words = list(vectorizer.vocabulary_.keys())
 
     # Sort by usage
     usage = np.array([doc.sum(0) for doc in docs]).sum(0)
@@ -92,7 +92,7 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
     models = [MultinomialLDS(K, D,
         init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
         dynamics_distn=AutoRegression(nu_0=D+1,S_0=1*np.eye(D),M_0=np.zeros((D,D)),K_0=1*np.eye(D)),
-        sigma_C=1., mu_pi=mus[i]) for i in xrange(Nx)]
+        sigma_C=1., mu_pi=mus[i]) for i in range(Nx)]
 
     for X, model in zip(Xs, models):
         model.add_data(X)
@@ -117,8 +117,8 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
         return toc, None, np.nan,  np.nan, compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
 
     timestamps = np.cumsum(times)
 
@@ -130,7 +130,7 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
     assert len(Xtest) == Nx
 
     print("Fitting HMM with %d states" % D_hmm)
-    models = [MultinomialHMM(K, D_hmm, alpha_0=10.0) for _ in xrange(Nx)]
+    models = [MultinomialHMM(K, D_hmm, alpha_0=10.0) for _ in range(Nx)]
 
     for X, model in zip(Xs, models):
         model.add_data(X)
@@ -151,8 +151,8 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
         return toc, None, np.nan, np.nan, compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -167,7 +167,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
         init_dynamics_distn=GaussianFixed(mu=np.zeros(D), sigma=1*np.eye(D)),
         dynamics_distn=AutoRegression(nu_0=D+1,S_0=1*np.eye(D),M_0=np.zeros((D,D)),K_0=1*np.eye(D)),
         emission_distn=Regression(nu_0=K+1,S_0=K*np.eye(K),M_0=np.zeros((K,D)),K_0=K*np.eye(D)))
-        for _ in xrange(Nx)]
+        for _ in range(Nx)]
 
     Xs_centered = [X - np.mean(X, axis=0)[None,:] + 1e-3*np.random.randn(*X.shape) for X in Xs]
     for X, model in zip(Xs_centered, models):
@@ -185,7 +185,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
             # largest dimension for each predicted Gaussian.
             # Preds is T x K x Npred, inds is TxNpred
             inds = np.argmax(preds, axis=1)
-            pi = np.array([np.bincount(inds[t], minlength=K) for t in xrange(Tpred)]) / float(Npred)
+            pi = np.array([np.bincount(inds[t], minlength=K) for t in range(Tpred)]) / float(Npred)
             assert np.allclose(pi.sum(axis=1), 1.0)
 
             pi = np.clip(pi, 1e-8, 1.0)
@@ -193,7 +193,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
 
             # Compute the log likelihood under pi
             pred_ll += np.sum([Multinomial(weights=pi[t], K=K).log_likelihood(Xte[t][None,:])
-                              for t in xrange(Tpred)])
+                              for t in range(Tpred)])
 
         return pred_ll
 
@@ -210,8 +210,8 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
 
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
     return Results(lls, test_lls, pred_lls, samples, timestamps)
 
@@ -259,8 +259,8 @@ def fit_ln_lds_model(Xs, Xtest, D, N_samples=100):
         return toc, None, np.nan, np.nan, compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -280,7 +280,7 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
                 emission_distn=Regression(nu_0=K+1,S_0=K*np.eye(K),M_0=np.zeros((K,D)),K_0=K*np.eye(D)),
                 mu=pi_to_psi(np.ones(K)/K),
                 sigma_C=1.0)
-             for _ in xrange(Nx)]
+             for _ in range(Nx)]
 
     for model in models:
         model.A = 0.5*np.eye(D)
@@ -307,8 +307,8 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
         return toc, None, np.nan, np.nan, compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -358,7 +358,7 @@ def plot_pred_log_likelihood(results, names, results_dir,
             win = 10
             pad_pred_ll = np.concatenate((pred_ll[0] * np.ones(win), pred_ll))
             smooth_pred_ll = np.array([logsumexp(pad_pred_ll[j-win:j+1])-np.log(win)
-                                       for j in xrange(win, pad_pred_ll.size)])
+                                       for j in range(win, pad_pred_ll.size)])
 
             plt.plot(np.clip(result.timestamps[burnin:], 1e-3,np.inf),
                      (smooth_pred_ll[burnin:] - baseline) / normalizer,
@@ -401,8 +401,8 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest,
     M = len(all_results[0])                 # Number of models tested
     T = len(all_results[0][0].pred_lls)     # Number of MCMC iters
     pred_lls = np.zeros((N,M,T))
-    for n in xrange(N):
-        for m in xrange(M):
+    for n in range(N):
+        for m in range(M):
             if all_results[n][m].pred_lls.ndim == 2:
                 pred_lls[n,m] = all_results[n][m].pred_lls[:,0]
             else:
@@ -414,8 +414,8 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest,
 
     # Use bootstrap to compute error bars
     pred_ll_std = np.zeros_like(pred_ll_mean)
-    for n in xrange(N):
-        for m in xrange(M):
+    for n in range(N):
+        for m in range(M):
             samples = np.random.choice(pred_lls[n,m,burnin:], size=(100, (T-burnin)), replace=True)
             pll_samples = logsumexp(samples, axis=1) - np.log(T-burnin)
             pred_ll_std[n,m] = pll_samples.std()
@@ -441,7 +441,7 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest,
     ax.get_yaxis().tick_left()
 
     width = np.min(np.diff(Ds)) / (M+1.0) if len(Ds)>1 else 1.
-    for m in xrange(M):
+    for m in range(M):
         ax.bar(Ds+m*width,
                (pred_ll_mean[:,m] - baseline) / normalizer,
                yerr=pred_ll_std[:,m] / normalizer,
@@ -481,14 +481,14 @@ def compute_singular_vectors(model, words):
         perm = np.argsort(pi)[::-1]
         return words[perm][:k]
 
-    for d in xrange(min(5, A.shape[0])):
+    for d in range(min(5, A.shape[0])):
         ud = U[:,d]
         vd = V[d,:]
 
         psi_ud = C.dot(ud) + mu
         psi_vd = C.dot(vd)  + mu
 
-        from pgmult.internals.utils import psi_to_pi
+        from pgmult.utils import psi_to_pi
         baseline = psi_to_pi(mu)
         pi_ud = psi_to_pi(psi_ud) - baseline
         pi_vd = psi_to_pi(psi_vd) - baseline
@@ -506,7 +506,7 @@ if __name__ == "__main__":
     results_dir = os.path.join("results", "alice", "run%03d" % run)
 
     # Make sure the results directory exists
-    from pgmult.internals.utils import mkdir
+    from pgmult.utils import mkdir
     if not os.path.exists(results_dir):
         print("Making results directory: ", results_dir)
         mkdir(results_dir)
@@ -520,7 +520,7 @@ if __name__ == "__main__":
     T_split = 100
 
     # Filter out documents shorter than 2 * T_split
-    Xfilt = filter(lambda X: X.shape[0] > T_end, Xs)
+    Xfilt = [X for X in Xs if X.shape[0] > T_end]
     Xtrain = [X[:T_end-T_split] for X in Xfilt[docs]]
     Xtest = [X[T_end-T_split:T_end] for X in Xfilt[docs]]
 
@@ -542,14 +542,14 @@ if __name__ == "__main__":
             if os.path.exists(results_file):
                 print("Loading from: ", results_file)
                 with gzip.open(results_file, "r") as f:
-                    D_model_results = cPickle.load(f)
+                    D_model_results = pickle.load(f)
             else:
                 print("Fitting ", model, " for D=",D)
                 D_model_results = method(Xtrain, Xtest, D, N_samples)
 
                 with gzip.open(results_file, "w") as f:
                     print("Saving to: ", results_file)
-                    cPickle.dump(D_model_results, f, protocol=-1)
+                    pickle.dump(D_model_results, f, protocol=-1)
 
             D_results.append(D_model_results)
         all_results.append(D_results)
@@ -559,7 +559,7 @@ if __name__ == "__main__":
         results_file = os.path.join(results_dir, "results_%s_D%d.pkl.gz" % ("HMM", D))
         print("Loading from: ", results_file)
         with gzip.open(results_file, "r") as f:
-            D_model_results = cPickle.load(f)
+            D_model_results = pickle.load(f)
         all_results[0].append(D_model_results)
 
     # Plot log likelihoods for the results using one D

@@ -1,7 +1,7 @@
 """
 Simple Geweke test for the PG-augmented Multinomial distribution
 """
-from __future__ import print_function
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm, probplot
@@ -20,7 +20,7 @@ def geweke_test(K, N_iter=10000):
     # Run a Geweke test
     xs = []
     samples = []
-    for itr in xrange(N_iter):
+    for itr in range(N_iter):
         if itr % 10 == 0:
             print("Iteration ", itr)
         # Resample the data

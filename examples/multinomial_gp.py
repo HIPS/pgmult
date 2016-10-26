@@ -1,7 +1,7 @@
 """
 1D GP with multinomial observations
 """
-from __future__ import print_function
+
 import os
 import time
 from collections import namedtuple
@@ -65,7 +65,7 @@ def initialize_interactive_plot(model, train, test):
     plt.ion()
     fig, axs = plt.subplots(train.K, 2)
     lns = np.zeros((train.K,4), dtype=object)
-    for k in xrange(train.K):
+    for k in range(train.K):
         if k == train.K-1 and not plot_K:
             pass
         else:
@@ -117,7 +117,7 @@ def update_plot(lns, model, train, test):
     pi_test, psi_test, _ = \
             model.collapsed_predict(test.Z)
 
-    for k in xrange(K):
+    for k in range(K):
         if k == K-1 and not plot_K:
             pass
         else:
@@ -143,7 +143,7 @@ def fit_model(model, train_data, test_data, N_iter=100, lns=None):
     pred_psis = [pred_psi]
 
     timestamps = [time.clock()]
-    for itr in xrange(N_iter):
+    for itr in range(N_iter):
         print("Iteration ", itr)
         model.resample_model()
 

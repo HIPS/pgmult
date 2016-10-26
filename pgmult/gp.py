@@ -1,7 +1,7 @@
 """
 Multinomial observations with Gaussian process priors.
 """
-from __future__ import absolute_import
+
 import sys
 import numpy as np
 
@@ -145,7 +145,7 @@ class _MultinomialGPBase(Model):
 
         # Sample from a zero mean GP, N(0, C) for each output, k
         psis = np.zeros((M, self.K-1))
-        for k in xrange(self.K-1):
+        for k in range(self.K-1):
             # TODO: Reuse the Cholesky
             psis[:,k] = np.random.multivariate_normal(np.zeros(M), C)
 
@@ -154,7 +154,7 @@ class _MultinomialGPBase(Model):
 
         # Sample from the multinomial distribution
         pis = psi_to_pi(psis)
-        X = np.array([np.random.multinomial(N[m], pis[m]) for m in xrange(M)])
+        X = np.array([np.random.multinomial(N[m], pis[m]) for m in range(M)])
 
         if keep:
             self.add_data(Z, X)
@@ -200,7 +200,7 @@ class _MultinomialGPBase(Model):
         # Predict the psis
         mu_psis_new = np.zeros((self.K-1, M_new))
         Sig_psis_new = np.zeros((self.K-1, M_new, M_new))
-        for k in xrange(self.K-1):
+        for k in range(self.K-1):
             sys.stdout.write(".")
             sys.stdout.flush()
 
@@ -256,7 +256,7 @@ class _MultinomialGPBase(Model):
         Cvv  = self.kernel.K(Z, Z)
         Cvv +=  np.diag(1e-6 * np.ones(M))
 
-        for k in xrange(self.K-1):
+        for k in range(self.K-1):
             sys.stdout.write(".")
             sys.stdout.flush()
 
@@ -299,7 +299,7 @@ class _MultinomialGPBase(Model):
         Cvv  = self.kernel.K(Z, Z)
         Cvv +=  np.diag(1e-6 * np.ones(M))
 
-        for k in xrange(self.K-1):
+        for k in range(self.K-1):
             sys.stdout.write(".")
             sys.stdout.flush()
 
@@ -392,7 +392,7 @@ class _MultinomialGPGibbsSampling(_MultinomialGPBase, ModelGibbsSampling):
 
             # Compute the posterior covariance
             psi = np.zeros((M, self.K-1))
-            for k in xrange(self.K-1):
+            for k in range(self.K-1):
                 if verbose:
                     sys.stdout.write(".")
                     sys.stdout.flush()
@@ -450,7 +450,7 @@ class _MultinomialGPGibbsSampling(_MultinomialGPBase, ModelGibbsSampling):
             lkhd_mean = kappa/omega - psi
 
             # Update the sufficient statistics
-            for k in xrange(self.K-1):
+            for k in range(self.K-1):
                 valid = np.where(N[:,k])[0]
                 post_prec += omega[valid, k].sum(0)
                 post_prec_dot_mean += (omega[valid,k] * lkhd_mean[valid,k]).sum(0)
@@ -646,7 +646,7 @@ class LogisticNormalGP(ModelGibbsSampling):
 
         # Sample from a zero mean GP, N(0, C) for each output, k
         psis = np.zeros((M, self.K))
-        for k in xrange(self.K):
+        for k in range(self.K):
             # TODO: Reuse the Cholesky
             psis[:,k] = np.random.multivariate_normal(np.zeros(M), C)
 
@@ -655,7 +655,7 @@ class LogisticNormalGP(ModelGibbsSampling):
 
         # Sample from the multinomial distribution
         pis = np.array([ln_psi_to_pi(psi) for psi in psis])
-        X = np.array([np.random.multinomial(N[m], pis[m]) for m in xrange(M)])
+        X = np.array([np.random.multinomial(N[m], pis[m]) for m in range(M)])
 
         if keep:
             self.add_data(Z, X)
@@ -692,7 +692,7 @@ class LogisticNormalGP(ModelGibbsSampling):
         # Predict the psis
         mu_psis_new = np.zeros((self.K, M_new))
         Sig_psis_new = np.zeros((self.K, M_new, M_new))
-        for k in xrange(self.K):
+        for k in range(self.K):
             sys.stdout.write(".")
             sys.stdout.flush()
 
@@ -738,7 +738,7 @@ class LogisticNormalGP(ModelGibbsSampling):
                 L = data["L"]
 
             # Resample each GP using elliptical slice sampling
-            for k in xrange(self.K):
+            for k in range(self.K):
                 if verbose:
                     sys.stdout.write(".")
                     sys.stdout.flush()

@@ -1,5 +1,5 @@
-from __future__ import division
-from __future__ import absolute_import
+
+
 import numpy as np
 import os
 from os.path import join, basename, isdir
@@ -87,7 +87,7 @@ def load_ldac_ctm_results(nonempty, resultsdir):
 
     def load_iter(i):
         return {name:np.loadtxt(join(resultsdir,'%03d-%s' % (i, suffix))).reshape(shape)
-                for name, (suffix, shape) in results_file_suffixes.iteritems()}
+                for name, (suffix, shape) in results_file_suffixes.items()}
 
     def pad_empty(val):
         def pad(param):

@@ -1,7 +1,7 @@
-from __future__ import print_function
+
 import os
 import numpy as np
-import cPickle
+import pickle
 from hips.plotting.layout import create_figure
 from hips.plotting.colormaps import gradient_cmap
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ def logma(v):
     def logavg(v):
         return logsumexp(v) - np.log(len(v))
 
-    return np.array([logavg(v[n//2:n]) for n in xrange(2,len(v))])
+    return np.array([logavg(v[n//2:n]) for n in range(2,len(v))])
 
 def corr_matrix(a):
      return a / np.outer(np.sqrt(np.diag(a)), np.sqrt(np.diag(a)))
@@ -85,7 +85,7 @@ def plot_correlation_matrix(Sigma,
     # Find the most correlated off diagonal entry
     C_offdiag = np.tril(C,k=-1)
     sorted_pairs = np.argsort(C_offdiag.ravel())
-    for i in xrange(5):
+    for i in range(5):
         print("")
         imax,jmax = np.unravel_index(sorted_pairs[-i], (T,T))
         print("Correlated Topics (%d, %d): " % (imax, jmax))
@@ -98,7 +98,7 @@ def plot_correlation_matrix(Sigma,
     print("-" * 50)
     print("-" * 50)
 
-    for i in xrange(5):
+    for i in range(5):
         print("")
         imin,jmin = np.unravel_index(sorted_pairs[i], (T,T))
         print("Anticorrelated Topics (%d, %d): " % (imin, jmin))
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     res_dir = os.path.join("results", "ap_lda")
     res_file = os.path.join(res_dir, "ec2_results2_c.pkl")
     with open(res_file) as f:
-        res = cPickle.load(f)
+        res = pickle.load(f)
 
     # Plot pred ll vs time
     models = ["sb", "ln", "em", "lda"]

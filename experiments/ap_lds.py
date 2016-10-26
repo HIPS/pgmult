@@ -3,12 +3,12 @@ Linear dynamical system model for the AP text dataset.
 Each document is modeled as a draw from an LDS with
 categorical observations.
 """
-from __future__ import print_function
+
 import os
 import re
 import gzip
 import time
-import cPickle
+import pickle
 import operator
 import collections
 import numpy as np
@@ -61,8 +61,8 @@ def load(filename=None):
     return docs, words
 
 def download_ap():
-    from cStringIO import StringIO
-    from urllib2 import urlopen
+    from io import StringIO
+    from urllib.request import urlopen
     import tarfile
 
     print("Downloading AP data...")
@@ -120,8 +120,8 @@ def fit_lds_model(Xs, Xtest, D, N_samples=100):
             compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -151,8 +151,8 @@ def fit_hmm(Xs, Xtest, D_hmm, N_samples=100):
             compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -184,7 +184,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
             # largest dimension for each predicted Gaussian.
             # Preds is T x K x Npred, inds is TxNpred
             inds = np.argmax(preds, axis=1)
-            pi = np.array([np.bincount(inds[t], minlength=K) for t in xrange(Tpred)]) / float(Npred)
+            pi = np.array([np.bincount(inds[t], minlength=K) for t in range(Tpred)]) / float(Npred)
             assert np.allclose(pi.sum(axis=1), 1.0)
 
             pi = np.clip(pi, 1e-8, 1.0)
@@ -192,7 +192,7 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
 
             # Compute the log likelihood under pi
             pred_ll += np.sum([Multinomial(weights=pi[t], K=K).log_likelihood(Xt[t][None,:])
-                              for t in xrange(Tpred)])
+                              for t in range(Tpred)])
 
         return pred_ll
 
@@ -211,8 +211,8 @@ def fit_gaussian_lds_model(Xs, Xtest, D_gauss_lds, N_samples=100):
 
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
     return Results(lls, test_lls, pred_lls, samples, timestamps)
 
@@ -253,8 +253,8 @@ def fit_ln_lds_model(Xs, Xtest, D, N_samples=100):
             compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] +
-            [resample() for _ in progprint_xrange(N_samples, perline=5)])))
+        list(map(np.array, list(zip(*([init_results] +
+            [resample() for _ in progprint_xrange(N_samples, perline=5)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -297,7 +297,7 @@ def fit_lds_model_with_pmcmc(Xs, Xtest, D, N_samples=100):
             compute_pred_ll()
 
     times, samples, lls, test_lls, pred_lls = \
-        map(np.array, zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))
+        list(map(np.array, list(zip(*([init_results] + [resample() for _ in progprint_xrange(N_samples)])))))
     timestamps = np.cumsum(times)
 
     return Results(lls, test_lls, pred_lls, samples, timestamps)
@@ -332,7 +332,7 @@ def plot_pred_log_likelihood(results, names, run, outname="pred_ll_vs_time.pdf",
             win = 10
             pad_pred_ll = np.concatenate((pred_ll[0] * np.ones(win), pred_ll))
             smooth_pred_ll = np.array([logsumexp(pad_pred_ll[j-win:j+1])-np.log(win)
-                                       for j in xrange(win, pad_pred_ll.size)])
+                                       for j in range(win, pad_pred_ll.size)])
 
             plt.plot(np.clip(result.timestamps, 1e-3,np.inf), smooth_pred_ll,
                      lw=2, color=colors[i], label=name)
@@ -368,8 +368,8 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest, run):
     M = len(all_results[0])                 # Number of models tested
     T = len(all_results[0][0].pred_lls)     # Number of MCMC iters
     pred_lls = np.zeros((N,M,T))
-    for n in xrange(N):
-        for m in xrange(M):
+    for n in range(N):
+        for m in range(M):
             if all_results[n][m].pred_lls.ndim == 2:
                 pred_lls[n,m] = all_results[n][m].pred_lls[:,0]
             else:
@@ -381,8 +381,8 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest, run):
 
     # Use bootstrap to compute error bars
     pred_ll_std = np.zeros_like(pred_ll_mean)
-    for n in xrange(N):
-        for m in xrange(M):
+    for n in range(N):
+        for m in range(M):
             samples = np.random.choice(pred_lls[n,m,burnin:], size=(100, (T-burnin)), replace=True)
             pll_samples = logsumexp(samples, axis=1) - np.log(T-burnin)
             pred_ll_std[n,m] = pll_samples.std()
@@ -399,7 +399,7 @@ def plot_pred_ll_vs_D(all_results, Ds, Xtrain, Xtest, run):
     fig = plt.figure(figsize=(3,3))
     ax = fig.add_subplot(111)
     width = np.min(np.diff(Ds)) / (M+1.0) if len(Ds)>1 else 1.
-    for m in xrange(M):
+    for m in range(M):
         ax.bar(Ds+m*width,
                pred_ll_mean[:,m] - baseline,
                yerr=pred_ll_std[:,m],
@@ -436,7 +436,7 @@ def fit_joint_corpus():
     T_split = 10
 
     # Filter out documents shorter than 2 * T_split
-    Xfilt = filter(lambda X: X.shape[0] > 2*T_split, Xs)
+    Xfilt = [X for X in Xs if X.shape[0] > 2*T_split]
     Xtrain = [X[:-T_split] for X in Xfilt[:N_docs]]
     Xtest = [X[-T_split:] for X in Xfilt[:N_docs]]
 
@@ -454,14 +454,14 @@ def fit_joint_corpus():
             if os.path.exists(results_file):
                 print("Loading from: ", results_file)
                 with gzip.open(results_file, "r") as f:
-                    D_model_results = cPickle.load(f)
+                    D_model_results = pickle.load(f)
             else:
                 print("Fitting ", model, " for D=",D)
                 D_model_results = method(Xtrain, Xtest, D, N_samples)
 
                 with gzip.open(results_file, "w") as f:
                     print("Saving to: ", results_file)
-                    cPickle.dump(D_model_results, f, protocol=-1)
+                    pickle.dump(D_model_results, f, protocol=-1)
 
             D_results.append(D_model_results)
         all_results.append(D_results)

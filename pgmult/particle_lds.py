@@ -56,7 +56,7 @@ class LogisticNormalMultinomialLDSStates(LDSStates):
 
         states = np.empty((Tpred, self.n, Npred))
         states[0] = np.random.multivariate_normal(A.dot(z[-1]), sigma_states, size=Npred).T
-        for t in xrange(1, Tpred):
+        for t in range(1, Tpred):
             states[t] = self.A.dot(states[t-1]) + randseq[t-1]
 
         return states
@@ -263,7 +263,7 @@ class LogisticNormalMultinomialLDS(NonstationaryLDS):
 
         # TODO: Generalize for multinomial
         lls = np.zeros(Npred)
-        for m in xrange(Npred):
+        for m in range(Npred):
             # lls[m] = np.sum(
             #     [Multinomial(weights=pis[m,t,:], K=self.p).log_likelihood(Xtest[t][None,:])
             #      for t in xrange(Tpred)])
@@ -361,7 +361,7 @@ class ParticleSBMultinomialLDSStates(LDSStates):
 
         states = np.empty((Tpred, self.n, Npred))
         states[0] = np.random.multivariate_normal(A.dot(z[-1]), sigma_states, size=Npred).T
-        for t in xrange(1, Tpred):
+        for t in range(1, Tpred):
             states[t] = self.A.dot(states[t-1]) + randseq[t-1]
 
         return states
@@ -473,7 +473,7 @@ class ParticleSBMultinomialLDS(NonstationaryLDS):
 
         # TODO: Generalize for multinomial
         lls = np.zeros(Npred)
-        for m in xrange(Npred):
+        for m in range(Npred):
             # lls[m] = np.sum(
             #     [Multinomial(weights=pis[m,t,:], K=self.p).log_likelihood(Xtest[t][None,:])
             #      for t in xrange(Tpred)])

@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 import numpy as np
 from numpy.linalg import inv, solve
 
@@ -244,7 +244,7 @@ class PGMultinomialRegression(Distribution):
         psis = z.dot(self.C.T) + self.mu[None, :]
         pis = np.zeros((T, self.K))
         xs = np.zeros((T, self.K))
-        for t in xrange(T):
+        for t in range(T):
             pis[t,:] = psi_to_pi(psis[t,:])
             xs[t,:] = np.random.multinomial(N, pis[t,:])
 
@@ -290,13 +290,13 @@ class PGMultinomialRegression(Distribution):
             mu_dot_prec_obs = omega * mu_obs
 
             # Update the sufficient statistics for each neuron
-            for k in xrange(self.K-1):
+            for k in range(self.K-1):
                 lkhd_precision[k,:,:] += (z * prec_obs[:,k][:,None]).T.dot(z)
                 lkhd_mean_dot_precision[k,:] += \
                     (mu_dot_prec_obs[:,k]).T.dot(z)
 
         # Sample each row of C
-        for k in xrange(self.K-1):
+        for k in range(self.K-1):
             post_prec = prior_precision + lkhd_precision[k,:,:]
             post_cov  = np.linalg.inv(post_prec)
             post_mu   =  (prior_mean_dot_precision +
@@ -357,7 +357,7 @@ class PGMultinomialRegression(Distribution):
             prec = O
         else:
             prec = np.zeros((T, Km1, Km1))
-            for t in xrange(T):
+            for t in range(T):
                 prec[t,:,:] = np.diag(O[t,:])
 
         return prec
@@ -372,7 +372,7 @@ class PGMultinomialRegression(Distribution):
             cov = 1./O
         else:
             cov = np.zeros((T, Km1, Km1))
-            for t in xrange(T):
+            for t in range(T):
                 cov[t,:,:] = np.diag(1./O[t,:])
 
         return cov
@@ -506,7 +506,7 @@ class PGLogisticNormalMultinomial(GibbsSampling):
         return muk_cond, sigmak_cond
 
     def resample_psi(self, x):
-        for k in xrange(self.K):
+        for k in range(self.K):
             mu_cond, sigma_cond = self.conditional_psi(x, k)
             self.psi[k] = np.random.normal(mu_cond, np.sqrt(sigma_cond))
 

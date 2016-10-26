@@ -3,18 +3,19 @@ Model the name distribution as a function of state and year using
 a spatiotemporal Gaussian Process model with multinomial observations.
 We use the Polya-gamma augmentation trick to perform fully-Bayesian inference.
 """
-from __future__ import print_function
+
 import os
 import time
 import gzip
 from zipfile import ZipFile
-from urllib import urlretrieve
-import cPickle as pickle
+from urllib.request import urlretrieve
+import pickle as pickle
 import operator
 from collections import namedtuple, defaultdict
 
 import numpy as np
 from functools import reduce
+import imp
 np.random.seed(0)
 from scipy.special import gammaln
 from scipy.misc import logsumexp
@@ -31,10 +32,10 @@ from GPy.kern import RBF, Matern52
 
 from pgmult.utils import pi_to_psi, psi_to_pi, ln_pi_to_psi
 import pgmult.gp
-reload(pgmult.gp)
+imp.reload(pgmult.gp)
 
 import pgmult.distributions
-reload(pgmult.distributions)
+imp.reload(pgmult.distributions)
 
 
 #############
@@ -64,9 +65,9 @@ def load_data(
     train_inds, test_inds = get_train_test_ind(
         flat_years, flat_states, train_state, continental, DC)
     train_data, train_years, train_states, train_lat, train_lon = \
-        map(lambda arr: arr[train_inds], all_flat)
+        [arr[train_inds] for arr in all_flat]
     test_data, test_years, test_states, test_lat, test_lon = \
-        map(lambda arr: arr[test_inds], all_flat)
+        [arr[test_inds] for arr in all_flat]
 
     # downsample
     if downsample is not None:
@@ -118,14 +119,14 @@ def parse_names_files(zfile, N_names, end_year):
 
     def get_years(dct):
         sum = lambda lst: reduce(operator.or_, lst)
-        return sorted(sum(set(dd.keys()) for d in dct.values() for dd in d.values()))
+        return sorted(sum(set(dd.keys()) for d in list(dct.values()) for dd in list(d.values())))
 
     def get_top_names(dct, N_names):
         counts = defaultdict(int)
-        for statedict in dct.values():
-            for name, yeardict in statedict.iteritems():
+        for statedict in list(dct.values()):
+            for name, yeardict in statedict.items():
                 counts[name] += sum(yeardict.values())  # sum over years
-        return sorted(counts.keys(), key=counts.__getitem__, reverse=True)[:N_names]
+        return sorted(list(counts.keys()), key=counts.__getitem__, reverse=True)[:N_names]
 
     def get_data_array(dct, years, states, names):
         counts = np.zeros((len(years), len(states), len(names)))
@@ -220,7 +221,7 @@ def fit_gp_multinomial_model(model, test, pi_train=None, N_samples=100, run=1):
         print("Initial Pred LL: ", pred_lls[0])
 
 
-        for itr in xrange(N_samples):
+        for itr in range(N_samples):
             print("Iteration ", itr)
             tic = time.time()
             model.resample_model(verbose=True)

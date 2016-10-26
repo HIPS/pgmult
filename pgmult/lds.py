@@ -1,7 +1,7 @@
 """
 Some simple models with multinomial observations and Gaussian priors.
 """
-from __future__ import print_function
+
 import numpy as np
 
 from scipy.special import gammaln
@@ -26,8 +26,9 @@ class MultinomialLDSStates(LDSStates):
 
         ll, self.stateseq = filter_and_sample_diagonal(
             self.mu_init, self.sigma_init,
-            self.A, self.sigma_states,
-            self.C, conditional_cov, conditional_mean)
+            self.A, self.B, self.sigma_states,
+            self.C, self.D, conditional_cov,
+            self.inputs, conditional_mean)
 
         assert np.all(np.isfinite(self.stateseq))
 
@@ -39,8 +40,9 @@ class MultinomialLDSStates(LDSStates):
 
         normalizer, _, _ = kalman_filter(
             self.mu_init, self.sigma_init,
-            self.A, self.sigma_states,
-            self.C, conditional_cov, conditional_mean)
+            self.A, self.B, self.sigma_states,
+            self.C, self.D,  conditional_cov,
+            self.inputs, conditional_mean)
         return normalizer
 
     def predict_states(self, conditional_mean, conditional_cov, Tpred=1, Npred=1):
@@ -52,7 +54,8 @@ class MultinomialLDSStates(LDSStates):
         sigma_states = self.sigma_states
 
         _, filtered_mus, filtered_sigmas = kalman_filter_diagonal(
-            self.mu_init, self.sigma_init, self.A, self.sigma_states, self.C,
+            self.mu_init, self.sigma_init,
+            self.A, self.sigma_states, self.C,
             conditional_cov, conditional_mean)
         init_mu = A.dot(filtered_mus[-1])
         init_sigma = sigma_states + A.dot(filtered_sigmas[-1]).dot(A.T)
@@ -108,6 +111,11 @@ class _MultinomialLDSBase(Model):
         self.dynamics_distn.A = A
 
     @property
+    def B(self):
+        # TODO: Allow input dependence
+        return np.zeros((self.n, 0))
+
+    @property
     def sigma_states(self):
         return self.dynamics_distn.sigma
 
@@ -122,6 +130,11 @@ class _MultinomialLDSBase(Model):
     @C.setter
     def C(self,C):
         self.emission_distn.C = C
+
+    @property
+    def D(self):
+        # TODO: Allow input dependence
+        return np.zeros((self.p, 0))
 
     @property
     def mu_init(self):
@@ -182,7 +195,7 @@ class _MultinomialLDSBase(Model):
         # Monte carlo integrate wrt omega ~ PG(N, 0)
         import pypolyagamma as ppg
         hlls = np.zeros(M)
-        for m in xrange(M):
+        for m in range(M):
             # Sample omega using the emission distributions samplers
             omega = np.zeros(N.size)
             ppg.pgdrawvpar(self.emission_distn.ppgs,
@@ -195,7 +208,7 @@ class _MultinomialLDSBase(Model):
             states = MultinomialLDSStates(model=self, data=X)
             conditional_mean = kappa / np.clip(omega, 1e-64,np.inf) - self.emission_distn.mu[None, :]
             conditional_prec = np.zeros((T, K-1, K-1))
-            for t in xrange(T):
+            for t in range(T):
                 conditional_prec[t,:,:] = np.diag(omega[t,:])
 
             Z_lds = states.info_log_likelihood(conditional_mean, conditional_prec)
@@ -238,7 +251,7 @@ class _MultinomialLDSBase(Model):
         # Monte carlo integrate wrt omega ~ PG(N, 0)
         import pypolyagamma as ppg
         hlls = np.zeros(M)
-        for m in xrange(M):
+        for m in range(M):
             # Sample omega using the emission distributions samplers
             omega = np.zeros(N.size)
             ppg.pgdrawvpar(self.emission_distn.ppgs,
@@ -262,7 +275,7 @@ class _MultinomialLDSBase(Model):
             conditional_mean = kappa / omega - self.emission_distn.mu[None, :]
             # conditional_mean[~np.isfinite(conditional_mean)] = 0
             conditional_cov = np.zeros((T, K-1, K-1))
-            for t in xrange(T):
+            for t in range(T):
                 conditional_cov[t,:,:] = np.diag(1./omega[t,:])
             Z_lds = states.log_likelihood(conditional_mean, conditional_cov)
 
@@ -285,7 +298,7 @@ class _MultinomialLDSBase(Model):
         assert K == self.K
 
         lls = np.zeros(M)
-        for m in xrange(M):
+        for m in range(M):
             # Sample latent states from the prior
             data = self.generate(T=T, keep=False)
             data["x"] = X
@@ -318,7 +331,7 @@ class _MultinomialLDSBase(Model):
         lls = []
         z_preds = data["states"].predict_states(
                 conditional_mean, conditional_cov, Tpred=Tpred, Npred=M)
-        for m in xrange(M):
+        for m in range(M):
             ll_pred = self.emission_distn.log_likelihood(
                 {"z": z_preds[...,m], "x": X_pred})
             lls.append(ll_pred)
@@ -400,7 +413,7 @@ class _MultinomialLDSGibbsSampling(_MultinomialLDSBase, ModelGibbsSampling):
             init_model.add_data(data["x"])
 
         print("Initializing with Gaussian LDS")
-        for smpl in xrange(20):
+        for smpl in range(20):
             init_model.resample_model()
 
         # Use the init model's parameters

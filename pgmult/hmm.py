@@ -20,7 +20,7 @@ class MultinomialHMM(HMM):
         Initialize an HMM with D latent states and
         K dimensional Multinomial observations.
         """
-        obs_distns = [Multinomial(K=K, alpha_0=alpha_0) for _ in xrange(D)]
+        obs_distns = [Multinomial(K=K, alpha_0=alpha_0) for _ in range(D)]
 
         super(HMM, self).__init__(
             obs_distns,

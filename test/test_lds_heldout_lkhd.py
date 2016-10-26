@@ -1,7 +1,7 @@
 """
 Test the LDS held out likelihoods against a Monte Carlo comparison
 """
-from __future__ import print_function
+
 import numpy as np
 from scipy.misc import logsumexp
 

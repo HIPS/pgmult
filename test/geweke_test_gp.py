@@ -1,7 +1,7 @@
 """
 Simple Geweke test for the multinomial GP
 """
-from __future__ import print_function
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -33,7 +33,7 @@ def geweke_test(K, N_iter=10000):
     # Helper function to resample counts
     def _resample_X():
         pis = model.pi(data)
-        X = np.array([np.random.multinomial(N_max, pis[m]) for m in xrange(M)])
+        X = np.array([np.random.multinomial(N_max, pis[m]) for m in range(M)])
         N = N_vec(X).astype(np.float)
         kappa = kappa_vec(X)
 
@@ -46,7 +46,7 @@ def geweke_test(K, N_iter=10000):
     psi_samples = []
 
     # samples = []
-    for itr in xrange(N_iter):
+    for itr in range(N_iter):
         if itr % 10 == 0:
             print("Iteration ", itr)
 

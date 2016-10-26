@@ -2,7 +2,7 @@
 Latent Dirichlet Allocation models, including vanilla LDA as well as correlated
 and dynamic topic models (CTMs and DTMs) employing the Polya-Gamma augmentation.
 """
-from __future__ import absolute_import
+
 import abc
 import copy
 import numpy as np
@@ -87,8 +87,6 @@ def timeindices_from_timestamps(timestamps):
 # differently, theta stuff is left abstract.
 
 class _LDABase(object):
-    __metaclass__ = abc.ABCMeta
-
     def __init__(self, data, T, alpha_beta):
         assert isinstance(data, scipy.sparse.csr.csr_matrix)
         self.D, self.V = data.shape
@@ -336,10 +334,10 @@ class LogisticNormalCorrelatedLDA(_LDABase):
 
     def resample_psi_and_omega(self):
         Lmbda = np.linalg.inv(self.theta_prior.sigma)
-        for d in xrange(self.D):
+        for d in range(self.D):
             N = self.data[d].sum()
             c = self.doc_topic_counts[d]
-            for t in xrange(self.T):
+            for t in range(self.T):
                 self.omega[d,t] = self.ppgs[0].pgdraw(
                     N, self._conditional_omega(d,t))
 

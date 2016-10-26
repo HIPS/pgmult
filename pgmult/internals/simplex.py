@@ -2,7 +2,7 @@
 From Matt's dirichlet-truncated-multinomial repo.
 """
 
-from __future__ import division
+
 import numpy as np
 
 def mesh(N,edges=True):

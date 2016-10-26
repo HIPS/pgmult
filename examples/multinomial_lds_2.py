@@ -3,7 +3,7 @@ Linear dynamical system model for the AP text dataset.
 Each document is modeled as a draw from an LDS with
 categorical observations.
 """
-from __future__ import print_function
+
 import os
 import gzip
 import time
@@ -57,7 +57,7 @@ def make_synthetic_data():
 
     data_list = []
     Xs = []
-    for i in xrange(Ndata):
+    for i in range(Ndata):
         data = truemodel.generate(T=T, N=N)
         data_list.append(data)
         Xs.append(data["x"])

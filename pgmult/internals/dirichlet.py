@@ -2,8 +2,8 @@
 From Matt's dirichlet-truncated-multinomial repo.
 """
 
-from __future__ import division
-from __future__ import absolute_import
+
+
 import numpy as np
 na = np.newaxis
 import scipy.special

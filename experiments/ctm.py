@@ -1,10 +1,10 @@
 """
 Correlated topic model (LDA) test
 """
-from __future__ import division
-from __future__ import print_function
+
+
 import os, re, gzip, time, operator, inspect, hashlib, random
-import cPickle as pickle
+import pickle as pickle
 from collections import namedtuple
 from functools import wraps
 
@@ -24,7 +24,6 @@ from pybasicbayes.util.text import progprint_xrange
 
 from pgmult.lda import StandardLDA, StickbreakingCorrelatedLDA, LogisticNormalCorrelatedLDA
 from pgmult.utils import mkdir, ln_psi_to_pi, pi_to_psi
-import pgmult.internals.ctm_wrapper as ctm_wrapper
 
 all_categories = [
     'comp.graphics', 'comp.os.ms-windows.misc', 'comp.sys.ibm.pc.hardware',
@@ -37,6 +36,24 @@ all_categories = [
 
 cachedir = 'result_cache'
 
+# If you want to compare against the CTM of Blei and Lafferty,
+# set this to true and rerun. If you haven't installed it to
+# deps/ctm-dist, the code will halt and print an error message
+# with a link to where the CTM code can be found.
+FIT_BLEI_CTM = False
+
+# If you want to compare against the logistic normal CTM with
+# Polya-gamma augmentation, set this to true. Note that this
+# fitting procedure is much slower
+FIT_LN_CTM = False
+
+# If you want to compare against standard collapsed LDA, set
+# this to true. This takes about 10 mins on my Intel Core i7.
+FIT_LDA = True
+
+# To fit our stick breaking CTM, set this to true. This takes
+# about 30 mins on my Intel Core i7.
+FIT_SB_CTM = True
 
 ##########
 #  util  #
@@ -60,11 +77,11 @@ def cached(func):
     def wrapped(*args, **kwargs):
         argdict = \
             {k:replace_arrays(v) for k,v in
-                inspect.getcallargs(func,*args,**kwargs).iteritems()}
+                inspect.getcallargs(func,*args,**kwargs).items()}
         closurevals = \
             [replace_arrays(cell.cell_contents) for cell in func.__closure__ or []]
 
-        key = str(hash(frozenset(argdict.items() + closurevals)))
+        key = str(hash(frozenset(list(argdict.items()) + closurevals)))
         cachefile = cachebase + '.' + key
 
         if os.path.isfile(cachefile):
@@ -95,23 +112,27 @@ def load_newsgroup_data(V, cats, sort_data=True):
 
 def load_ap_data(V, sort_data=True):
     def fetch_ap():
-        from cStringIO import StringIO
-        from urllib2 import urlopen
+        from io import BytesIO
+        from urllib.request import urlopen
         import tarfile
 
         print("Downloading AP data...")
         response = urlopen('http://www.cs.princeton.edu/~blei/lda-c/ap.tgz')
-        tar = tarfile.open(fileobj=StringIO(response.read()))
-        return tar.extractfile('ap/ap.txt').read()
+        tar = tarfile.open(fileobj=BytesIO(response.read()))
+        return str(tar.extractfile('ap/ap.txt').read())
 
-    docs = re.findall(r'(?<=<TEXT> ).*?(?= </TEXT>)', fetch_ap().translate(None,'\n'))
+    ap = fetch_ap().replace("\\n", '')
+    docs = re.findall(r'(?<=<TEXT> )(.*?)(?= </TEXT>)', ap)
+    doclen = [len(d) for d in docs]
+    print("Number of Documents: ", len(docs))
+    print("Average Document Length: ", np.mean(doclen))
     return get_sparse_repr(docs, V, sort_data)
 
 
 def sample_documents(counts, words, num=10):
     for row in random.sample(list(counts), num):
         for col in row.nonzero()[1]:
-            print('{} '.format(words[col]), end=' ')
+            print('{} '.format(words[col]))
         print('\n')
 
 
@@ -141,11 +162,11 @@ def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=
     def split_rows(mat, p):
         def sparse_to_lilrows(mat):
             out = mat.tolil()
-            return zip(out.rows, out.data)
+            return list(zip(out.rows, out.data))
 
         def lilrows_to_csr(lilrows):
             out = lil_matrix(mat.shape, dtype=np.uint32)
-            out.rows, out.data = zip(*lilrows)
+            out.rows, out.data = list(zip(*lilrows))
             return out.tocsr()
 
         def split(lst, p):
@@ -154,7 +175,7 @@ def split_test_train(data, train_frac, test_frac, exclude_words_not_in_training=
             inds = np.random.rand(len(lst)) < p
             return _split(lst, ~inds), _split(lst, inds)
 
-        return map(lilrows_to_csr, split(sparse_to_lilrows(mat), p))
+        return list(map(lilrows_to_csr, split(sparse_to_lilrows(mat), p)))
 
     def split_multinomial(mat, p):
         data2 = np.random.binomial(mat.data, p)
@@ -220,14 +241,14 @@ def sort_vocab(counts, words):
 
 def sparse_from_blocks(blocks):
     blocklen = lambda data_indices: data_indices[0].shape[0]
-    data, indices = map(np.concatenate, zip(*blocks))
-    indptr = np.concatenate(((0,), np.cumsum(map(blocklen, blocks))))
+    data, indices = list(map(np.concatenate, list(zip(*blocks))))
+    indptr = np.concatenate(((0,), np.cumsum(list(map(blocklen, blocks)))))
     return data, indices, indptr
 
 
 def sparse_to_blocks(mat):
     data, indices, indptr = mat.data, mat.indices, mat.indptr
-    slices = map(slice, indptr[:-1], indptr[1:])
+    slices = list(map(slice, indptr[:-1], indptr[1:]))
     return [(data[sl], indices[sl]) for sl in slices]
 
 
@@ -252,6 +273,7 @@ Results = namedtuple(
 
 
 def fit_lnctm_em(train_data, test_data, T):
+    import pgmult.internals.ctm_wrapper as ctm_wrapper
     if ctm_wrapper.has_ctm_c:
         print('Running CTM EM...')
         return Results(*ctm_wrapper.fit_ctm_em(train_data, test_data, T))
@@ -277,9 +299,9 @@ def sampler_fitter(name, cls, method, initializer):
         model = cls(train_data, T, *args)
         model = initializer(model) if init_at_em and initializer else model
         init_val = evaluate(model)
-        vals, timesteps = zip(*[sample(model) for _ in progprint_xrange(Niter)])
+        vals, timesteps = list(zip(*[sample(model) for _ in progprint_xrange(Niter)]))
 
-        lls, plls, perps = zip(*((init_val,) + vals))
+        lls, plls, perps = list(zip(*((init_val,) + vals)))
         timestamps = np.cumsum((0.,) + timesteps)
 
         return Results(lls, plls, perps, model.copy_sample(), timestamps)
@@ -289,35 +311,42 @@ def sampler_fitter(name, cls, method, initializer):
 
 
 def make_ctm_initializer(get_psi):
-    ctm_initial_beta_path = os.path.join(ctm_wrapper.resultsdir, '000-log-beta.dat')
-    ctm_initial_lambda_path = os.path.join(ctm_wrapper.resultsdir, '000-lambda.dat')
+    if FIT_BLEI_CTM:
+        import pgmult.internals.ctm_wrapper as ctm_wrapper
+        ctm_initial_beta_path = os.path.join(ctm_wrapper.resultsdir, '000-log-beta.dat')
+        ctm_initial_lambda_path = os.path.join(ctm_wrapper.resultsdir, '000-lambda.dat')
 
-    def initializer(model):
-        T, V = model.T, model.V
+        def initializer(model):
+            T, V = model.T, model.V
 
-        model.beta = np.exp(np.loadtxt(ctm_initial_beta_path)
-                            .reshape((-1,V))).T
+            model.beta = np.exp(np.loadtxt(ctm_initial_beta_path)
+                                .reshape((-1,V))).T
 
-        lmbda = np.loadtxt(ctm_initial_lambda_path).reshape((-1,T))
-        nonempty_docs = np.asarray(model.data.sum(1) > 0).ravel()
-        model.psi[nonempty_docs] = get_psi(lmbda)
+            lmbda = np.loadtxt(ctm_initial_lambda_path).reshape((-1,T))
+            nonempty_docs = np.asarray(model.data.sum(1) > 0).ravel()
+            model.psi[nonempty_docs] = get_psi(lmbda)
 
-        model.resample_z()
-        model.resample_theta_prior()
+            model.resample_z()
+            model.resample_theta_prior()
 
-        return model
+            return model
+
+    else:
+        def initializer(model):
+            return model
 
     return initializer
 
 
 def lda_initializer(model):
-    T, V = model.T, model.V
-    model.beta = np.exp(np.loadtxt('ctm-out/000-log-beta.dat')
-                            .reshape((-1,V))).T
-    lmbda = np.loadtxt('ctm-out/000-lambda.dat').reshape((-1,T))
-    nonempty_docs = np.asarray(model.data.sum(1) > 0).ravel()
-    model.theta[nonempty_docs] = ln_psi_to_pi(lmbda)
-    model.resample_z()
+    if FIT_BLEI_CTM:
+        T, V = model.T, model.V
+        model.beta = np.exp(np.loadtxt('ctm-out/000-log-beta.dat')
+                                .reshape((-1,V))).T
+        lmbda = np.loadtxt('ctm-out/000-lambda.dat').reshape((-1,T))
+        nonempty_docs = np.asarray(model.data.sum(1) > 0).ravel()
+        model.theta[nonempty_docs] = ln_psi_to_pi(lmbda)
+        model.resample_z()
     return model
 
 
@@ -368,7 +397,7 @@ def print_topics(std_results, std_collapsed_results, sb_results, ln_results, wor
 
     for name, result in zip(names, results):
         print('Top words for %s' % name)
-        for t in xrange(T):
+        for t in range(T):
             print('Topic {}: {}'.format(t, ' '.join(get_topwords(result, t))))
         print()
 
@@ -391,7 +420,7 @@ def logma(v):
     def logavg(v):
         return logsumexp(v) - np.log(len(v))
 
-    return np.array([logavg(v[n//2:n]) for n in xrange(2,len(v))])
+    return np.array([logavg(v[n//2:n]) for n in range(2,len(v))])
 
 
 def plot_predictive_lls(result, logaddexp, **kwargs):
@@ -440,25 +469,28 @@ if __name__ == '__main__':
     train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
 
     ## fit and plot
-    em_results = fit_lnctm_em(train_data, test_data, T)
-    if em_results is not None:
-        plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
+    all_results = dict()
+    if FIT_BLEI_CTM:
+        em_results = fit_lnctm_em(train_data, test_data, T)
+        if em_results is not None:
+            plot_predictive_lls(em_results, False, color=colors[0], label='LN CTM EM')
 
-    lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
-    plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
+        all_results['em'] = em_results
 
-    ln_results = fit_lnctm_gibbs(train_data, test_data, T, 200, True, alpha_beta)
-    plot_predictive_lls(ln_results, True, color=colors[1], label='LN CTM Gibbs')
+    if FIT_LN_CTM:
+        ln_results = fit_lnctm_gibbs(train_data, test_data, T, 200, True, alpha_beta)
+        plot_predictive_lls(ln_results, True, color=colors[1], label='LN CTM Gibbs')
+        all_results['ln'] = ln_results
 
-    sb_results = fit_sbctm_gibbs(train_data, test_data, T, 1500, True, alpha_beta)
-    plot_predictive_lls(sb_results, True, color=colors[2], label='SB CTM Gibbs')
+    if FIT_LDA:
+        lda_results = fit_lda_collapsed(train_data, test_data, T, 1000, True, alpha_beta, alpha_theta)
+        plot_predictive_lls(lda_results, True, color=colors[1], label='LDA Gibbs')
+        all_results['lda'] = lda_results
 
-    all_results = {
-        'em': em_results,
-        'lda': lda_results,
-        'ln': ln_results,
-        'sb': sb_results,
-    }
+    if FIT_SB_CTM:
+        sb_results = fit_sbctm_gibbs(train_data, test_data, T, 1500, True, alpha_beta)
+        plot_predictive_lls(sb_results, True, color=colors[2], label='SB CTM Gibbs')
+        all_results['sb'] = sb_results
 
     with open('ctm_results.pkl','w') as outfile:
         pickle.dump(all_results, outfile, protocol=-1)

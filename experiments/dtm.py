@@ -1,12 +1,12 @@
-from __future__ import division
+
 import numpy as np
 import time
 import re
 import os
 import operator
-import cPickle as pickle
+import pickle as pickle
 import dateutil
-from urllib2 import urlopen
+from urllib.request import urlopen
 from collections import namedtuple
 
 from pybasicbayes.util.text import progprint, progprint_xrange
@@ -33,9 +33,9 @@ def fetch_sotu():
         response = urlopen(baseurl + 'index.html')
         dates = re.findall(r'<li><a href="([0-9]+)\.html">', response.read())
 
-        print 'Downloading SOTU data...'
+        print('Downloading SOTU data...')
         sotus = {date:download_text(date) for date in progprint(dates)}
-        print '...done!'
+        print('...done!')
 
         mkdir(os.path.dirname(path))
         with open(path, 'w') as outfile:
@@ -53,7 +53,7 @@ def datestrs_to_timestamps(datestrs):
 
 def load_sotu_data(V, sort_data=True):
     sotus = fetch_sotu()
-    datestrs, texts = zip(*sorted(sotus.items(), key=operator.itemgetter(0)))
+    datestrs, texts = list(zip(*sorted(list(sotus.items()), key=operator.itemgetter(0))))
     return datestrs_to_timestamps(datestrs), get_sparse_repr(texts, V, sort_data)
 
 
@@ -79,12 +79,12 @@ def fit_sbdtm_gibbs(train_data, test_data, timestamps, K, Niter, alpha_theta):
         timestep = time.time() - tic
         return evaluate(model), timestep
 
-    print 'Running sbdtm gibbs...'
+    print('Running sbdtm gibbs...')
     model = StickbreakingDynamicTopicsLDA(train_data, timestamps, K, alpha_theta)
     init_val = evaluate(model)
-    vals, timesteps = zip(*[sample(model) for _ in progprint_xrange(Niter)])
+    vals, timesteps = list(zip(*[sample(model) for _ in progprint_xrange(Niter)]))
 
-    lls, plls = zip(*((init_val,) + vals))
+    lls, plls = list(zip(*((init_val,) + vals)))
     times = np.cumsum((0,) + timesteps)
 
     return Results(lls, plls, model.copy_sample(), times)
@@ -103,10 +103,10 @@ if __name__ == '__main__':
     timestamps, (data, words) = load_sotu_data(V)
 
     ## print setup
-    print 'K=%d, V=%d' % (K, V)
-    print 'alpha_theta = %0.3f' % alpha_theta
-    print 'train_frac = %0.3f, test_frac = %0.3f' % (train_frac, test_frac)
-    print
+    print('K=%d, V=%d' % (K, V))
+    print('alpha_theta = %0.3f' % alpha_theta)
+    print('train_frac = %0.3f, test_frac = %0.3f' % (train_frac, test_frac))
+    print()
 
     ## split train test
     train_data, test_data = split_test_train(data, train_frac=train_frac, test_frac=test_frac)
