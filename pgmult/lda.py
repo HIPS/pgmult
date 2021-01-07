@@ -460,7 +460,7 @@ class StickbreakingDynamicTopicsLDA(object):
 
     def resample_z(self):
         topicprobs = self._get_topicprobs()
-        multinomial_par(self.pyrngs, self.data.data, topicprobs, self.z)
+        multinomial(self.pyrngs, self.data.data, topicprobs, self.z)
         self._update_counts()
 
     def resample_omega(self):
